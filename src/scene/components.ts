@@ -180,7 +180,8 @@ function horizontalPanel(
     shape.lineTo(-x, z - 0.01)
     shape.lineTo(-x + relief, z - 0.01)
     shape.closePath()
-    panel = plate(shape, thickness, material)
+    // A small softened board edge catches light; its radius is a visual estimate.
+    panel = plate(shape, thickness, material, thickness >= 0.014 ? 0.00035 : 0)
   } else panel = roundedBox(w, d, thickness, material, Math.min(0.004, thickness / 5))
   if (material instanceof THREE.MeshStandardMaterial && material.map) {
     const position = panel.geometry.getAttribute('position')

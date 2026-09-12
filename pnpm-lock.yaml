@@ -128,6 +128,12 @@ importers:
       three:
         specifier: 0.186.0
         version: 0.186.0
+      three-gpu-pathtracer:
+        specifier: 0.0.24
+        version: 0.0.24(three-mesh-bvh@0.9.15(three@0.186.0))(three@0.186.0)(xatlas-web@0.1.0)
+      three-mesh-bvh:
+        specifier: 0.9.15
+        version: 0.9.15(three@0.186.0)
     devDependencies:
       '@types/react':
         specifier: latest
@@ -1789,8 +1795,20 @@ packages:
     peerDependencies:
       react: '>=17.0'
 
+  three-gpu-pathtracer@0.0.24:
+    resolution: {integrity: sha512-fHQ7g7ywvSwRAQywhsfech2/kspQKinfFNOcNDTJS2Q34CzcF1kpESlOVvJH8kX/bGlCnxMI+Qo16kWGAy7zCA==}
+    peerDependencies:
+      three: '>=0.180.0'
+      three-mesh-bvh: '>=0.7.4'
+      xatlas-web: ^0.1.0
+
   three-mesh-bvh@0.8.3:
     resolution: {integrity: sha512-4G5lBaF+g2auKX3P0yqx+MJC6oVt6sB5k+CchS6Ob0qvH0YIhuUk1eYr7ktsIpY+albCqE80/FVQGV190PmiAg==}
+    peerDependencies:
+      three: '>= 0.159.0'
+
+  three-mesh-bvh@0.9.15:
+    resolution: {integrity: sha512-9xdEDkCzFoT8VPFH9DznwFSdbaIEjMvM106Iqq7TJurrIheUKDcdW4prfJTCxryih4XS/UxWs0H3K4MLMRFyOQ==}
     peerDependencies:
       three: '>= 0.159.0'
 
@@ -1973,6 +1991,9 @@ packages:
         optional: true
       utf-8-validate:
         optional: true
+
+  xatlas-web@0.1.0:
+    resolution: {integrity: sha512-PprVfuXbaIskxLTLBUQRaWfgSy9xUQqAMIRooOw0P6NYqwgh6T0voeer6+Z5M7AFt5SGXUybuww/uDGs1yw8vQ==}
 
   youch-core@0.3.3:
     resolution: {integrity: sha512-ho7XuGjLaJ2hWHoK8yFnsUGy2Y5uDpqSTq1FkHLK4/oqKtyUU1AFbOOxY4IpC9f0fTLjwYbslUz0Po5BpD1wrA==}
@@ -3195,7 +3216,17 @@ snapshots:
     dependencies:
       react: 19.2.0
 
+  three-gpu-pathtracer@0.0.24(three-mesh-bvh@0.9.15(three@0.186.0))(three@0.186.0)(xatlas-web@0.1.0):
+    dependencies:
+      three: 0.186.0
+      three-mesh-bvh: 0.9.15(three@0.186.0)
+      xatlas-web: 0.1.0
+
   three-mesh-bvh@0.8.3(three@0.186.0):
+    dependencies:
+      three: 0.186.0
+
+  three-mesh-bvh@0.9.15(three@0.186.0):
     dependencies:
       three: 0.186.0
 
@@ -3411,6 +3442,8 @@ snapshots:
   ws@8.21.0: {}
 
   ws@8.21.3: {}
+
+  xatlas-web@0.1.0: {}
 
   youch-core@0.3.3:
     dependencies:

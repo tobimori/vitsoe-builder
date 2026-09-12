@@ -65,13 +65,37 @@ export function roundedShape(width: number, height: number, radius: number) {
   return shape
 }
 
-export function plate(shape: THREE.Shape, thickness: number, material: THREE.Material) {
+export function plate(
+  shape: THREE.Shape,
+  thickness: number,
+  material: THREE.Material,
+  edgeRadius = 0,
+) {
+  const radius = Math.min(edgeRadius, thickness / 3)
   const geometry = new THREE.ExtrudeGeometry(shape, {
-    depth: thickness,
-    bevelEnabled: false,
+    depth: thickness - 2 * radius,
+    bevelEnabled: radius > 0,
+    bevelSize: radius,
+    bevelThickness: radius,
+    bevelSegments: 2,
     curveSegments: 12,
   })
-  geometry.translate(0, 0, -thickness / 2)
+  geometry.translate(0, 0, -thickness / 2 + radius)
+
+  if (radius > 0) {
+    // Extrusion bevels grow outside the outline. Restore its exact envelope,
+    // including the rear mounting relief, rather than enlarging the component.
+    const outline = new THREE.Box2().setFromPoints(shape.getPoints(12))
+    geometry.computeBoundingBox()
+    const bounds = geometry.boundingBox!
+    const scaleX = (outline.max.x - outline.min.x) / (bounds.max.x - bounds.min.x)
+    const scaleY = (outline.max.y - outline.min.y) / (bounds.max.y - bounds.min.y)
+    const offsetX = outline.min.x - bounds.min.x * scaleX
+    const offsetY = outline.min.y - bounds.min.y * scaleY
+    geometry.scale(scaleX, scaleY, 1)
+    geometry.translate(offsetX, offsetY, 0)
+  }
+
   return mesh(geometry, material)
 }
 

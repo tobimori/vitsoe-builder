@@ -47,6 +47,7 @@ export function projectedFaceGesture(
 
 export function makeDragGhost(assembly: THREE.Group, itemIds: string[], origin: THREE.Object3D) {
   const ghost = new THREE.Group()
+  ghost.userData.dragPreview = true
   const material = new THREE.MeshBasicMaterial({
     color: '#0076ad',
     transparent: true,

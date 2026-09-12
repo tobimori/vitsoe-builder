@@ -10,7 +10,8 @@ import {
 import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, Line, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
+import { createStudioEnvironment } from './environment'
+import { SceneRenderer } from './SceneRenderer'
 import type { BuilderSceneProps, ConnectedSupportMove, Face, PlacedItem } from '../domain/types'
 import {
   allowedFaces,
@@ -33,18 +34,14 @@ function StudioEnvironment() {
   const { gl, scene, invalidate } = useThree()
 
   useEffect(() => {
-    const room = new RoomEnvironment()
-    const pmrem = new THREE.PMREMGenerator(gl)
-    const environment = pmrem.fromScene(room, 0.035)
+    const environment = createStudioEnvironment(gl)
     scene.environment = environment.texture
     scene.environmentIntensity = studioLighting.environment
     invalidate()
 
     return () => {
       scene.environment = null
-      room.dispose()
       environment.dispose()
-      pmrem.dispose()
     }
   }, [gl, scene, invalidate])
 
@@ -105,7 +102,10 @@ function Dimension({
   )
 }
 
-function Room({ document }: Pick<BuilderSceneProps, 'document'>) {
+function Room({
+  document,
+  presentation = false,
+}: Pick<BuilderSceneProps, 'document'> & { presentation?: boolean }) {
   const w = toMetres(document.room.width)
   const d = toMetres(document.room.depth)
   const h = toMetres(document.room.ceilingHeight)
@@ -145,7 +145,7 @@ function Room({ document }: Pick<BuilderSceneProps, 'document'>) {
         color="#cbc8bd"
         lineWidth={0.8}
       />
-      {document.room.showDimensions && (
+      {document.room.showDimensions && !presentation && (
         <>
           <Dimension
             start={[0, 0.01, Math.min(d - 0.12, 1.25)]}
@@ -444,11 +444,44 @@ function AssemblyScene(props: BuilderSceneProps) {
   const x = toMetres(document.system.placement.x) + width / 2
   const z = toMetres(document.system.placement.z)
   const rotation = THREE.MathUtils.degToRad(document.system.placement.rotation)
+  const keyLight = useRef<THREE.DirectionalLight>(null)
   const lightTarget = useMemo(() => {
     const target = new THREE.Object3D()
     target.position.set(x, 1, z)
     return target
   }, [x, z])
+  useEffect(() => {
+    if (!keyLight.current) return
+
+    const light = keyLight.current
+    light.target.updateMatrixWorld(true)
+    light.updateMatrixWorld(true)
+    light.shadow.updateMatrices(light)
+    assembly.updateWorldMatrix(true, true)
+    const bounds = new THREE.Box3().setFromObject(assembly)
+    bounds.min.y = 0
+    bounds.expandByScalar(0.3)
+    const lightBounds = new THREE.Box3()
+
+    for (const bx of [bounds.min.x, bounds.max.x]) {
+      for (const by of [bounds.min.y, bounds.max.y]) {
+        for (const bz of [bounds.min.z, bounds.max.z]) {
+          const point = new THREE.Vector3(bx, by, bz).applyMatrix4(
+            light.shadow.camera.matrixWorldInverse,
+          )
+          lightBounds.expandByPoint(point)
+        }
+      }
+    }
+
+    const shadowCamera = light.shadow.camera
+    shadowCamera.left = lightBounds.min.x - 0.35
+    shadowCamera.right = lightBounds.max.x + 0.35
+    shadowCamera.bottom = lightBounds.min.y - 0.35
+    shadowCamera.top = lightBounds.max.y + 0.35
+    shadowCamera.updateProjectionMatrix()
+    invalidate()
+  }, [assembly, x, z, rotation, invalidate])
   useEffect(() => () => disposeAssembly(assembly), [assembly])
   useEffect(() => {
     onExportUsdzReady?.(() => exportAssemblyUsdz(assembly, document.system.mountingType))
@@ -822,6 +855,8 @@ function AssemblyScene(props: BuilderSceneProps) {
       <hemisphereLight args={['#fffdf8', '#89867d', studioLighting.hemisphere]} />
       <primitive object={lightTarget} />
       <directionalLight
+        ref={keyLight}
+        name="Studio window key"
         position={[x - 3, 5.5, z + 4]}
         target={lightTarget}
         color="#fffdf8"
@@ -836,15 +871,15 @@ function AssemblyScene(props: BuilderSceneProps) {
         shadow-camera-bottom={-4}
         shadow-camera-near={0.1}
         shadow-camera-far={20}
-        shadow-radius={1}
+        shadow-radius={1.5}
       />
       <directionalLight
         position={[x + 4, 3, z - 2]}
         target={lightTarget}
         intensity={studioLighting.fill}
       />
-      <Room document={document} />
-      {document.room.showDimensions && supportDimensions && (
+      <Room document={document} presentation={props.renderMode} />
+      {document.room.showDimensions && !props.renderMode && supportDimensions && (
         <group>
           <Dimension
             start={[0, 0.12, supportDimensions.z]}
@@ -885,7 +920,7 @@ function AssemblyScene(props: BuilderSceneProps) {
           }}
           onPointerOut={() => setHovering(false)}
         />
-        {document.room.showDimensions && dragDimensions && (
+        {document.room.showDimensions && !props.renderMode && dragDimensions && (
           <DragDimensions preview={dragDimensions} />
         )}
         {dragMarker && (
@@ -916,7 +951,7 @@ function AssemblyScene(props: BuilderSceneProps) {
             </Html>
           </group>
         )}
-        {document.room.showDimensions && (
+        {document.room.showDimensions && !props.renderMode && (
           <Dimension
             start={[-width / 2, Math.max(0.15, toMetres(document.system.mountHeight)) - 0.06, 0.48]}
             end={[width / 2, Math.max(0.15, toMetres(document.system.mountHeight)) - 0.06, 0.48]}
@@ -924,10 +959,19 @@ function AssemblyScene(props: BuilderSceneProps) {
           />
         )}
       </group>
-      <Selection
+      {!props.renderMode && (
+        <Selection
+          assembly={assembly}
+          selectedItemId={selectedItemId}
+          selectedSupportIndex={selectedSupportIndex}
+        />
+      )}
+      <SceneRenderer
+        enabled={props.renderMode ?? false}
+        onStatus={props.onRenderStatusChange}
         assembly={assembly}
-        selectedItemId={selectedItemId}
-        selectedSupportIndex={selectedSupportIndex}
+        revision={`${x},${z},${rotation},${document.room.width},${document.room.depth},${document.room.ceilingHeight}`}
+        dragging={dragging}
       />
       <CameraRig
         document={document}

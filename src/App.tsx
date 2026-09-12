@@ -21,6 +21,7 @@ import type {
   ConnectedSupportMove,
   ItemDragStatus,
   PlacedItem,
+  RenderStatus,
   ViewMode,
 } from './domain/types'
 import { migrateDocumentFinishes, parseBuilderDocument } from './domain/document'
@@ -75,6 +76,8 @@ export default function App() {
   const [cancelDragRevision, setCancelDragRevision] = useState(0)
   const [viewMode, setViewMode] = useState<ViewMode>('orbit')
   const [cameraFitRevision, setCameraFitRevision] = useState(0)
+  const [renderMode, setRenderMode] = useState(false)
+  const [renderStatus, setRenderStatus] = useState<RenderStatus | null>(null)
   const [tab, setTab] = useState<'system' | 'room'>('system')
   const [catalogOpen, setCatalogOpen] = useState(false)
   const [partsOpen, setPartsOpen] = useState(false)
@@ -358,6 +361,8 @@ export default function App() {
           setMobileConfigOpen(false)
           setArUrl(null)
           setShareFallbackUrl(null)
+        } else if (renderMode) {
+          setRenderMode(false)
         } else if (!editing) {
           setSelectedItemId(null)
           setSelectedSupportIndex(null)
@@ -397,6 +402,7 @@ export default function App() {
     dragStatus,
     mobileConfigOpen,
     partsOpen,
+    renderMode,
     selectedItemId,
     shareFallbackUrl,
     document,
@@ -635,7 +641,7 @@ export default function App() {
         />
       </div>
 
-      <section className="stage" aria-label="Room view">
+      <section className={`stage ${renderMode ? 'render-active' : ''}`} aria-label="Room view">
         <div className="stage-title">
           <p className="eyebrow">606 Universal Shelving System</p>
           <h1>Plan your system</h1>
@@ -647,6 +653,7 @@ export default function App() {
           selectedSupportIndex={selectedSupportIndex}
           viewMode={viewMode}
           cameraFitRevision={cameraFitRevision}
+          renderMode={renderMode}
           onSelectItem={(itemId) => {
             setSelectedItemId(itemId)
             if (!itemId) return
@@ -670,6 +677,7 @@ export default function App() {
           dragFaceOverride={dragFaceOverride}
           cancelDragRevision={cancelDragRevision}
           onItemDragStatusChange={handleItemDragStatus}
+          onRenderStatusChange={setRenderStatus}
           onExportUsdzReady={(exporter) => {
             exportUsdzRef.current = exporter
           }}
@@ -710,11 +718,63 @@ export default function App() {
           <button type="button" onClick={() => setCameraFitRevision((revision) => revision + 1)}>
             Fit view
           </button>
+          <button
+            type="button"
+            aria-pressed={renderMode}
+            onClick={() => {
+              if (renderMode) {
+                setRenderMode(false)
+              } else {
+                setRenderStatus(null)
+                setRenderMode(true)
+              }
+            }}
+          >
+            Render
+          </button>
         </div>
-        <p className="camera-help">
-          Drag empty space to orbit · Right-drag to pan · Scroll to zoom · Double-click a component
-          to focus · Option-drag to copy
-        </p>
+        {!renderMode && (
+          <p className="camera-help">
+            Drag empty space to orbit · Right-drag to pan · Scroll to zoom · Double-click a
+            component to focus · Option-drag to copy
+          </p>
+        )}
+        {renderMode && renderStatus && renderStatus.phase !== 'idle' && (
+          <div
+            className={`render-status ${renderStatus.phase}`}
+            role={renderStatus.phase === 'error' ? 'alert' : 'status'}
+            aria-live="polite"
+          >
+            <div>
+              <strong>
+                {renderStatus.phase === 'loading'
+                  ? 'Preparing render'
+                  : renderStatus.phase === 'rendering'
+                    ? 'Rendering'
+                    : renderStatus.phase === 'complete'
+                      ? 'Render ready'
+                      : 'Render unavailable'}
+              </strong>
+              {renderStatus.message && renderStatus.phase !== 'complete' && (
+                <span>{renderStatus.message}</span>
+              )}
+              {renderStatus.progress !== undefined && (
+                <progress
+                  aria-label="Rendering progress"
+                  max={1}
+                  value={Math.max(0, Math.min(1, renderStatus.progress))}
+                />
+              )}
+            </div>
+            <button type="button" onClick={() => setRenderMode(false)}>
+              {renderStatus.phase === 'complete'
+                ? 'Back to edit'
+                : renderStatus.phase === 'error'
+                  ? 'Continue editing'
+                  : 'Cancel render'}
+            </button>
+          </div>
+        )}
         {allowedFaces(document).includes('back') && (
           <div className={`side-control ${dragStatus ? 'dragging' : ''}`} aria-label="Side to plan">
             <span aria-live="polite">
@@ -763,7 +823,7 @@ export default function App() {
             {issues.filter((issue) => issue.severity === 'error').length === 1 ? '' : 's'}
           </button>
         )}
-        {selectedItem && (
+        {selectedItem && !renderMode && (
           <Inspector
             document={document}
             catalog={catalog}
@@ -774,7 +834,7 @@ export default function App() {
             onClose={() => setSelectedItemId(null)}
           />
         )}
-        {selectedSupportIndex !== null && (
+        {selectedSupportIndex !== null && !renderMode && (
           <SupportInspector
             document={document}
             catalog={catalog}

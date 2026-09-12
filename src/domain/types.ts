@@ -8,6 +8,14 @@ export type SystemColour = 'off-white' | 'black' | 'silver'
 export type Face = 'front' | 'back'
 export type ItemOrientation = 'standard' | 'inverted' | 'vertical'
 export type ViewMode = 'orbit' | 'front' | 'back'
+export type RenderPhase = 'idle' | 'loading' | 'rendering' | 'complete' | 'error'
+
+export interface RenderStatus {
+  phase: RenderPhase
+  /** Completed fraction from 0 to 1 when the renderer can measure it. */
+  progress?: number
+  message?: string
+}
 
 export interface RoomDimensions {
   width: Millimetres
@@ -175,6 +183,7 @@ export interface BuilderSceneProps {
   selectedSupportIndex: number | null
   viewMode: ViewMode
   cameraFitRevision?: number
+  renderMode?: boolean
   onSelectItem: (itemId: string | null) => void
   onSelectSupport: (supportIndex: number | null) => void
   onMoveItem: (
@@ -188,5 +197,6 @@ export interface BuilderSceneProps {
   dragFaceOverride?: Face | null
   cancelDragRevision?: number
   onItemDragStatusChange?: (status: ItemDragStatus | null) => void
+  onRenderStatusChange?: (status: RenderStatus) => void
   onExportUsdzReady?: (exportUsdz: () => Promise<Blob>) => void
 }

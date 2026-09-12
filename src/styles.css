@@ -486,6 +486,9 @@ button:disabled {
   font-weight: 400;
   letter-spacing: -0.035em;
 }
+.stage.render-active .stage-title {
+  visibility: hidden;
+}
 .view-tools {
   position: absolute;
   z-index: 5;
@@ -522,6 +525,69 @@ button:disabled {
   font-size: 11px;
   line-height: 1.35;
   text-align: right;
+}
+.render-status {
+  position: absolute;
+  z-index: 7;
+  right: 24px;
+  bottom: 78px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  width: min(420px, calc(100% - 48px));
+  min-height: 72px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  box-shadow: 0 3px 13px #00000014;
+}
+.render-status > div {
+  flex: 1;
+  min-width: 0;
+}
+.render-status strong,
+.render-status span {
+  display: block;
+}
+.render-status strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+.render-status span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+.render-status progress {
+  display: block;
+  width: 100%;
+  height: 3px;
+  margin-top: 10px;
+  border: 0;
+  background: #ddd;
+  accent-color: var(--blue);
+}
+.render-status progress::-webkit-progress-bar {
+  background: #ddd;
+}
+.render-status progress::-webkit-progress-value {
+  background: var(--blue);
+}
+.render-status progress::-moz-progress-bar {
+  background: var(--blue);
+}
+.render-status button {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--blue);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.render-status.error {
+  border-color: #c77668;
 }
 .field-message {
   margin: 10px 0 0;
@@ -632,6 +698,10 @@ button:disabled {
 }
 .add-component span {
   margin-right: 8px;
+}
+.stage.render-active .add-component,
+.stage.render-active .error-pill {
+  display: none;
 }
 .error-pill {
   position: absolute;
@@ -1206,11 +1276,28 @@ button:disabled {
 }
 
 @media (min-width: 721px) and (max-width: 1100px) {
+  .view-tools button {
+    min-width: 72px;
+    padding: 0 8px;
+    font-size: 12px;
+  }
   .side-control {
     top: 108px;
   }
   .stage:has(.side-control) .inspector {
     top: 180px;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 880px) {
+  .add-component {
+    bottom: 84px;
+  }
+  .error-pill {
+    bottom: 144px;
+  }
+  .camera-help {
+    display: none;
   }
 }
 
@@ -1266,15 +1353,26 @@ button:disabled {
     bottom: 13px;
     left: 12px;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
   .view-tools button {
     min-width: 0;
-    padding: 0 6px;
-    font-size: 11px;
+    padding: 0 2px;
+    font-size: 10px;
   }
   .camera-help {
     display: none;
+  }
+  .render-status {
+    right: 12px;
+    bottom: 69px;
+    width: calc(100% - 24px);
+    min-height: 66px;
+    padding: 10px 12px;
+  }
+  .render-status button {
+    padding: 0 10px;
+    font-size: 12px;
   }
   .side-control {
     top: 68px;

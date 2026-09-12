@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js'
+import { createStudioEnvironment } from './environment'
 import type {
   CatalogProduct,
   FinishId,
@@ -49,13 +49,9 @@ function previewEngine() {
   renderer.shadowMap.type = THREE.PCFShadowMap
 
   const scene = new THREE.Scene()
-  const room = new RoomEnvironment()
-  const pmrem = new THREE.PMREMGenerator(renderer)
-  const environment = pmrem.fromScene(room, 0.035)
+  const environment = createStudioEnvironment(renderer)
   scene.environment = environment.texture
   scene.environmentIntensity = studioLighting.environment
-  room.dispose()
-  pmrem.dispose()
   scene.add(new THREE.AmbientLight('#ffffff', studioLighting.ambient))
   scene.add(new THREE.HemisphereLight('#fffdf8', '#89867d', studioLighting.hemisphere))
   const key = new THREE.DirectionalLight('#fffdf8', studioLighting.key)

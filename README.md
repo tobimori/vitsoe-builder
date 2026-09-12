@@ -84,6 +84,7 @@ and a known subtotal when a structural price is unpublished.
   them or return to the system finish. The same resolved finish determines the
   3D material, catalogue preview, price, and exported AR model.
 - Drag a component to another bay or pin height; double-click it for a closer view.
+- Turn on Render for an optional higher-quality GPU view.
 - Use the inspector for finishes, orientations, opening state, and front/back placement.
 - Use Front or Back above the scene to choose a side in compressed or freestanding
   systems. The camera turns to that side, and the Add button names its destination.
@@ -104,6 +105,21 @@ installed wall and ceiling fixings would need repositioning.
 Catalogue illustrations are cached still renders of the component geometry,
 generated only when the catalogue opens. They share one offscreen renderer and
 do not animate.
+
+## Presentation render
+
+Render is an opt-in GPU presentation view and starts disabled on all devices,
+including phones. It progressively lights the same configured model geometry
+used by the editor and AR export. Rendering stops after 128 samples or 20 seconds
+of active work, whichever comes first, and does not continue drawing once the
+image is complete.
+
+Moving the camera or changing the configuration restarts the image. Use Cancel
+render, Back to edit, or Escape to return immediately to normal editing without
+changing the plan or camera.
+
+Surface colours, roughness, anodised aluminium, wood grain, and felt texture are
+visual approximations. Confirm final finishes from physical samples.
 
 ## iPhone and iPad AR
 
