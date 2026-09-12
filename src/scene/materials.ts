@@ -1,11 +1,50 @@
 import * as THREE from 'three'
 import type { FinishId } from '../domain/types'
 
+type Microfinish = 'satin' | 'powder' | 'lacquer'
+const microtextures = new Map<Microfinish, THREE.CanvasTexture>()
+
+function microtexture(finish: Microfinish) {
+  const existing = microtextures.get(finish)
+  if (existing) return existing
+  if (typeof window === 'undefined') return null
+
+  const canvas = window.document.createElement('canvas')
+  canvas.width = canvas.height = 256
+  const context = canvas.getContext('2d')
+  if (!context) return null
+
+  const pixels = context.createImageData(256, 256)
+  let seed = 606
+  const contrast = finish === 'satin' ? 28 : finish === 'powder' ? 18 : 7
+
+  for (let index = 0; index < pixels.data.length; index += 4) {
+    seed = (1664525 * seed + 1013904223) >>> 0
+    const roughness = 255 - Math.round((seed / 4294967296) * contrast)
+    pixels.data[index] = pixels.data[index + 1] = pixels.data[index + 2] = roughness
+    pixels.data[index + 3] = 255
+  }
+
+  context.putImageData(pixels, 0, 0)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.name = `606 ${finish} micro-roughness`
+  texture.colorSpace = THREE.NoColorSpace
+  // Coated and metal surfaces use metre-scale UVs: a 32 mm tile gives ~0.125 mm grain, filtered away at distance.
+  texture.repeat.set(31.25, 31.25)
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping
+  texture.minFilter = THREE.LinearMipmapLinearFilter
+  texture.anisotropy = 8
+
+  microtextures.set(finish, texture)
+  return texture
+}
+
 export const aluminium = new THREE.MeshStandardMaterial({
-  color: '#bec2c2',
-  metalness: 0.72,
-  roughness: 0.26,
-  envMapIntensity: 1.6,
+  color: '#eceeed',
+  metalness: 0.82,
+  roughness: 0.48,
+  roughnessMap: microtexture('satin'),
 })
 export const polishedMetal = new THREE.MeshStandardMaterial({
   color: '#d0d2d0',
@@ -76,7 +115,9 @@ export function finishMaterial(finish: FinishId, surface: Surface = 'steel') {
             ? '#cdab7f'
             : '#deded3',
     metalness: finish === 'silver' && surface === 'steel' ? 0.38 : 0,
-    roughness: finish === 'beech' ? 0.43 : surface === 'panel' ? 0.3 : 0.4,
+    roughness: finish === 'beech' ? 0.43 : surface === 'panel' ? 0.3 : 0.42,
+    roughnessMap:
+      finish === 'beech' ? null : microtexture(surface === 'panel' ? 'lacquer' : 'powder'),
   })
 
   if (finish === 'beech') {

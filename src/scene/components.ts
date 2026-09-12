@@ -10,7 +10,7 @@ import {
   finishMaterial,
   feltMaterial,
 } from './materials'
-import { box, cylinder, mm, plate, rodBetween, roundedBox, roundedShape } from './primitives'
+import { box, cylinder, mesh, mm, plate, rodBetween, roundedBox, roundedShape } from './primitives'
 import { BAY_USABLE_WIDTH } from '../domain/rules'
 
 // The overall catalogue sizes are exact. Small manufacturing offsets are
@@ -42,7 +42,7 @@ function pins(group: THREE.Group, width: number, y = 0) {
     [0, 10],
   ].map(([radius, axis]) => new THREE.Vector2(mm(radius), mm(axis)))
   for (const sign of [-1, 1]) {
-    const pin = new THREE.Mesh(new THREE.LatheGeometry(profile, 32), aluminium)
+    const pin = mesh(new THREE.LatheGeometry(profile, 32), aluminium)
     pin.position.set((sign * span) / 2, y, 0)
     pin.rotation.z = Math.PI / 2
     pin.name = carrierPinName
@@ -137,7 +137,7 @@ function metalShelf(group: THREE.Group, w: number, d: number, material: THREE.Ma
   }
   const geometry = mergeGeometries(sections)!
   sections.forEach((part) => part.dispose())
-  const deck = new THREE.Mesh(geometry, material)
+  const deck = mesh(geometry, material)
   deck.name = 'Folded steel deck'
   deck.userData.accessorySurface = true
   deck.castShadow = true

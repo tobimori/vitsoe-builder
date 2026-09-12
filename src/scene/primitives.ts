@@ -9,6 +9,26 @@ export function mesh(
   y = 0,
   z = 0,
 ) {
+  if (material instanceof THREE.MeshStandardMaterial && material.roughnessMap && !material.map) {
+    const position = geometry.getAttribute('position')
+    const normal = geometry.getAttribute('normal')
+    const uv = new Float32Array(position.count * 2)
+
+    for (let index = 0; index < position.count; index++) {
+      const nx = Math.abs(normal.getX(index))
+      const ny = Math.abs(normal.getY(index))
+      const nz = Math.abs(normal.getZ(index))
+      // Planar coordinates in metres keep finish grain the same size on boxes
+      // and extrusions. Surfaces with colour maps keep their existing image UVs.
+      const side = nx > ny && nx > nz
+      const top = ny > nz && !side
+      uv[index * 2] = side ? position.getZ(index) : position.getX(index)
+      uv[index * 2 + 1] = top ? position.getZ(index) : position.getY(index)
+    }
+
+    geometry.setAttribute('uv', new THREE.BufferAttribute(uv, 2))
+  }
+
   const object = new THREE.Mesh(geometry, material)
   object.position.set(x, y, z)
   object.castShadow = true
