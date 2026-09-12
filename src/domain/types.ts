@@ -67,6 +67,13 @@ export interface CatalogProduct {
   variants: ProductVariant[]
 }
 
+export interface ShelfDecor {
+  kind: 'vinyl' | 'art-books'
+  arrangement: 'upright' | 'stacked'
+  count: number
+  position: 'left' | 'centre' | 'right'
+}
+
 export interface PlacedItem {
   id: string
   productId: string
@@ -82,6 +89,8 @@ export interface PlacedItem {
   /** Accessories such as bookends attach to this component. */
   parentItemId?: string
   open?: boolean
+  /** Optional display objects placed on this component's top surface. */
+  decor?: ShelfDecor
 }
 
 export interface SystemState {
@@ -160,6 +169,8 @@ export interface ValidationIssue {
     | 'track-slot'
     | 'track-join'
     | 'track-special'
+    | 'decor-fit'
+    | 'decor-clearance'
     | 'stability'
     | 'balanced-load'
   severity: 'error' | 'advisory'

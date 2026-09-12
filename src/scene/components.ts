@@ -298,6 +298,7 @@ function cabinet(
   // their undersides, as in the beech cabinet close-up (Vitsœ asset 3507).
   const topPanel = horizontalPanel(w, d, 0.016, body, top - 0.008, true)
   topPanel.name = 'Cabinet top panel'
+  topPanel.userData.accessorySurface = product.id === 'shelf-with-drawer'
   const bottomPanel = horizontalPanel(w, d, 0.016, body, bottom + 0.008, true)
   bottomPanel.name = 'Cabinet bottom panel'
   group.add(topPanel, bottomPanel)
@@ -421,7 +422,9 @@ function integratedTable(
   const top = 0.74 - mm(item.height)
   const pinY = mm(attachmentHeight - item.height)
   const material = finishMaterial(item.finish, 'panel')
-  group.add(horizontalPanel(w, d, 0.018, material, top - 0.009, true))
+  const tabletop = horizontalPanel(w, d, 0.018, material, top - 0.009, true)
+  tabletop.userData.accessorySurface = true
+  group.add(tabletop)
   for (const sign of [-1, 1]) {
     const carrierShape = new THREE.Shape()
     carrierShape.moveTo(-0.009, pinY - 0.01)

@@ -11,6 +11,7 @@ import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Html, Line, OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { createStudioEnvironment } from './environment'
+import { onDecorTexturesLoaded } from './decor'
 import { SceneRenderer } from './SceneRenderer'
 import type { BuilderSceneProps, ConnectedSupportMove, Face, PlacedItem } from '../domain/types'
 import {
@@ -383,6 +384,7 @@ type SupportDragState = {
 
 function AssemblyScene(props: BuilderSceneProps) {
   const { invalidate, camera, gl } = useThree()
+  useEffect(() => onDecorTexturesLoaded(invalidate), [invalidate])
   const {
     document,
     catalog,

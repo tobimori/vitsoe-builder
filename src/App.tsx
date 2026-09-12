@@ -218,7 +218,8 @@ export default function App() {
       candidate.face !== original.face ||
       candidate.orientation !== original.orientation ||
       candidate.parentItemId !== original.parentItemId ||
-      candidate.open !== original.open
+      candidate.open !== original.open ||
+      candidate.decor !== original.decor
     if (!spatialChanged) {
       setDocument({
         ...document,
@@ -230,7 +231,14 @@ export default function App() {
       return
     }
     if (!proposal.valid) {
-      setNotice('That position is outside the system or overlaps another component.')
+      const decorIssue = validateDocument(proposal.document, catalog).find(
+        (issue) =>
+          (issue.code === 'decor-fit' || issue.code === 'decor-clearance') &&
+          issue.itemIds?.includes(candidate.id),
+      )
+      setNotice(
+        decorIssue?.message ?? 'That position is outside the system or overlaps another component.',
+      )
       return
     }
     setDocument(proposal.document)

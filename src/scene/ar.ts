@@ -1,3 +1,4 @@
+import { decorTexturesReady } from './decor'
 import { USDZExporter } from 'three/addons/exporters/USDZExporter.js'
 import {
   strFromU8,
@@ -14,6 +15,7 @@ export async function exportAssemblyUsdz(
   assembly: Group,
   mountingType: MountingType,
 ): Promise<Blob> {
+  await decorTexturesReady()
   const snapshot = assembly.clone(true)
   snapshot.position.set(0, 0, 0)
   const wall = mountingType === 'wall'

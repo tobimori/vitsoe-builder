@@ -6,6 +6,7 @@ import type {
   ItemOrientation,
   MountingType,
 } from './types'
+import { DECOR_COUNT_LIMITS } from './decor'
 import { orientationsFor, resolveItemFinish } from './products'
 
 const mountingTypes = new Set<MountingType>([
@@ -164,6 +165,17 @@ export function isBuilderDocument(
         return false
     } else if (product.compatibleHosts?.length) return false
     if (item.open !== undefined && typeof item.open !== 'boolean') return false
+    if (item.decor !== undefined) {
+      const decor = item.decor
+      if (
+        !record(decor) ||
+        (decor.kind !== 'vinyl' && decor.kind !== 'art-books') ||
+        (decor.arrangement !== 'upright' && decor.arrangement !== 'stacked') ||
+        (decor.position !== 'left' && decor.position !== 'centre' && decor.position !== 'right') ||
+        !bounded(decor.count, 1, DECOR_COUNT_LIMITS[decor.kind])
+      )
+        return false
+    }
   }
   return true
 }

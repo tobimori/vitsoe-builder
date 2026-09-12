@@ -9,6 +9,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js'
 import type { WebGLPathTracer } from 'three-gpu-pathtracer'
 import type { GenerateMeshBVHWorker } from 'three-mesh-bvh/worker'
 import type { RenderStatus } from '../domain/types'
+import { decorTexturesReady } from './decor'
 import { studioEnvironmentTexture } from './environment'
 
 const sampleLimit = 128
@@ -226,9 +227,16 @@ export function SceneRenderer({
         return
       }
 
-      current.building = true
       current.ready = false
       status({ phase: 'loading', message: 'Preparing geometry and lighting…' })
+      await withTimeout(
+        decorTexturesReady(),
+        'Book artwork took too long to load. Try rendering again.',
+      )
+      if (!mounted.current || !desired.current.enabled || token !== generation.current) {
+        return
+      }
+      current.building = true
       const build = current.tracer.setSceneAsync(presentationScene(scene), camera).finally(() => {
         current.building = false
       })

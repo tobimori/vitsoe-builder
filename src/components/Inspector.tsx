@@ -1,6 +1,13 @@
-import type { BuilderDocument, CatalogProduct, FinishId, PlacedItem } from '../domain/types'
+import type {
+  BuilderDocument,
+  CatalogProduct,
+  FinishId,
+  PlacedItem,
+  ShelfDecor,
+} from '../domain/types'
 import { allowedFaces, variantFor } from '../domain/rules'
 import { priceForVariant } from '../data/catalog'
+import { DECOR_COUNT_LIMITS, decorFitsSurface, isDecorHost } from '../domain/decor'
 import {
   isIntegratedTable,
   isOpenable,
@@ -34,6 +41,33 @@ export function Inspector({
   const price = priceForVariant(variant, resolvedFinish.finish)
   const selectedFinish = item.finishOverride ?? item.finish
   const hasFrontPanel = item.productId.includes('cabinet') || item.productId === 'shelf-with-drawer'
+  const decorEligible = isDecorHost(item)
+
+  const setDecorKind = (kind: ShelfDecor['kind'] | 'none') => {
+    if (kind === 'none') {
+      onChange({ ...item, decor: undefined })
+      return
+    }
+    const previous = item.decor
+    onChange({
+      ...item,
+      decor: {
+        kind,
+        arrangement: previous?.arrangement ?? 'upright',
+        count: Math.min(previous?.count ?? (kind === 'vinyl' ? 8 : 4), DECOR_COUNT_LIMITS[kind]),
+        position: previous?.position ?? 'centre',
+      },
+    })
+  }
+
+  const decorKindFits = (kind: ShelfDecor['kind']) =>
+    decorFitsSurface(
+      {
+        ...item,
+        decor: { kind, arrangement: 'upright', count: 1, position: 'centre' },
+      },
+      variant,
+    )
 
   const setFinish = (finishOverride: FinishId | 'system') => {
     const candidate = { ...item, finishOverride }
@@ -198,6 +232,99 @@ export function Inspector({
               {item.open ? 'Open' : 'Closed'}
             </span>
           </label>
+        )}
+        {(decorEligible || item.decor) && (
+          <section className="decor-editor" aria-labelledby="decor-heading">
+            <h3 id="decor-heading">Decor</h3>
+            <label className="number-field">
+              <span>Contents</span>
+              <select
+                value={item.decor?.kind ?? 'none'}
+                onChange={(event) =>
+                  setDecorKind(event.currentTarget.value as ShelfDecor['kind'] | 'none')
+                }
+              >
+                <option value="none">None</option>
+                <option value="vinyl" disabled={!decorKindFits('vinyl')}>
+                  Vinyl records
+                </option>
+                <option value="art-books" disabled={!decorKindFits('art-books')}>
+                  TASCHEN art books
+                </option>
+              </select>
+            </label>
+            {item.decor && (
+              <>
+                <label className="number-field">
+                  <span>Arrangement</span>
+                  <select
+                    value={item.decor.arrangement}
+                    onChange={(event) =>
+                      onChange({
+                        ...item,
+                        decor: {
+                          ...item.decor!,
+                          arrangement: event.currentTarget.value as ShelfDecor['arrangement'],
+                        },
+                      })
+                    }
+                  >
+                    <option value="upright">Upright</option>
+                    <option value="stacked">Stacked</option>
+                  </select>
+                </label>
+                <label className="number-field">
+                  <span>Quantity</span>
+                  <select
+                    value={item.decor.count}
+                    onChange={(event) =>
+                      onChange({
+                        ...item,
+                        decor: { ...item.decor!, count: Number(event.currentTarget.value) },
+                      })
+                    }
+                  >
+                    {Array.from({ length: DECOR_COUNT_LIMITS[item.decor.kind] }, (_, index) => (
+                      <option value={index + 1} key={index + 1}>
+                        {index + 1}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="number-field">
+                  <span>Placement</span>
+                  <select
+                    value={item.decor.position}
+                    onChange={(event) =>
+                      onChange({
+                        ...item,
+                        decor: {
+                          ...item.decor!,
+                          position: event.currentTarget.value as ShelfDecor['position'],
+                        },
+                      })
+                    }
+                  >
+                    <option value="left">Left</option>
+                    <option value="centre">Centre</option>
+                    <option value="right">Right</option>
+                  </select>
+                </label>
+              </>
+            )}
+            {!decorKindFits('vinyl') && !decorKindFits('art-books') && (
+              <p>This surface is too shallow for the available display objects.</p>
+            )}
+            {!decorKindFits('vinyl') && decorKindFits('art-books') && (
+              <p>Vinyl needs a 360 mm deep shelf.</p>
+            )}
+            {item.decor?.kind === 'vinyl' && item.productId === 'shelf' && variant.width > 655 && (
+              <p>For record storage, Vitsœ recommends the 655 × 360 mm shelf.</p>
+            )}
+          </section>
+        )}
+        {item.productId.includes('cabinet') && (
+          <p className="decor-guidance">Add a shelf above the cabinet for books or records.</p>
         )}
         <div className="static-field price-field">
           <span>Price incl. VAT</span>

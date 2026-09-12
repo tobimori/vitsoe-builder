@@ -106,6 +106,13 @@ Catalogue illustrations are cached still renders of the component geometry,
 generated only when the catalogue opens. They share one offscreen renderer and
 do not animate.
 
+Optional display objects attach to their shelf or table and move, copy, save,
+and export with it. They are visual planning aids and do not appear in the parts
+price. Record sleeves are approximated as 315 × 315 × 5 mm; the 606 planning
+guide recommends the 655 × 360 mm shelf for vinyl storage. The art books use the
+published 210 × 260 mm format of TASCHEN's 96-page Basic Art editions, with an
+approximately 14 mm spine.
+
 ## Presentation render
 
 Render is an opt-in GPU presentation view and starts disabled on all devices,
@@ -141,6 +148,10 @@ a desktop browser check cannot verify camera tracking or real-world scale.
 - [Vitsœ support systems](https://www.vitsoe.com/de/606/structures)
 - [Vitsœ components](https://www.vitsoe.com/de/606/components)
 - [Vitsœ material and construction FAQ](https://www.vitsoe.com/de/faqs)
+- [Vitsœ 606 planning guide with vinyl storage guidance](https://www.vitsoe.com/site/download/3563/606_Universal_Shelving_System_planning_guide_UK_EU_RW.pdf)
+- [TASCHEN Bauhaus Basic Art edition](https://www.taschen.com/en/books/architecture-design/49208/bauhaus/)
+- [TASCHEN Eames Basic Art edition](https://www.taschen.com/en/books/architecture-design/49209/eames/)
+- [TASCHEN Kandinsky Basic Art edition](https://www.taschen.com/en/books/art/49243/kandinsky/)
 
 The wordmark in `public/brand/vitsoe.svg` comes from Vitsœ's public website
 stylesheet. The interface uses system-font fallbacks rather than redistributing

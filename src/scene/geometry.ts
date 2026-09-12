@@ -5,6 +5,7 @@ import { resolveItemFinish } from '../domain/products'
 import { addSupports } from './supports'
 import { mm } from './primitives'
 import { carrierHeight } from '../domain/rules'
+import { makeShelfDecor } from './decor'
 import { mountingDepths } from './mounting'
 
 export function systemWidth(document: BuilderDocument) {
@@ -50,6 +51,8 @@ export function buildAssembly(document: BuilderDocument, catalog: CatalogProduct
         carrierHeight(item, document),
       ),
     )
+    const decor = makeShelfDecor(item, variant, component)
+    if (decor) component.add(decor)
     component.traverse((object) => {
       object.userData.itemId = item.id
     })

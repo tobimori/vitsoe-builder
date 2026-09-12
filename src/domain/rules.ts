@@ -11,6 +11,7 @@ import type {
 } from './types'
 import { priceForVariant } from '../data/catalog'
 import { findStructureVariant, recommendETracks, structureRules } from '../data/structure'
+import { decorFitsSurface, decorLayout, decorSurface, isDecorHost } from './decor'
 import {
   isAccessory,
   isIntegratedTable,
@@ -107,6 +108,19 @@ function itemsCollide(
         overlaps(aBand.z, aBand.depth, bBand.z, bBand.depth),
     ),
   )
+}
+
+function decorOccupiedBand(item: PlacedItem, variant: ProductVariant) {
+  if (!item.decor || !isDecorHost(item)) return undefined
+  const surface = decorSurface(item, variant)
+  const { bounds } = decorLayout(item.decor, surface.width)
+
+  return {
+    y: surface.elevation + bounds.y,
+    height: bounds.height,
+    z: bounds.z,
+    depth: bounds.depth,
+  }
 }
 
 export function moveConnectedSupportRun(
@@ -578,6 +592,33 @@ export function validateDocument(
         itemIds: [item.id],
       })
     }
+    if (item.decor) {
+      if (!isDecorHost(item)) {
+        issues.push({
+          code: 'decor-fit',
+          severity: 'error',
+          message: 'Display objects need a horizontal shelf or table surface.',
+          itemIds: [item.id],
+        })
+      } else if (!decorFitsSurface(item, variant)) {
+        issues.push({
+          code: 'decor-fit',
+          severity: 'error',
+          message: 'These display objects do not fit the selected surface.',
+          itemIds: [item.id],
+        })
+      } else {
+        const band = decorOccupiedBand(item, variant)!
+        if (band.y < 0 || band.y + band.height > room.ceilingHeight) {
+          issues.push({
+            code: 'decor-clearance',
+            severity: 'error',
+            message: 'The display objects extend beyond the available room height.',
+            itemIds: [item.id],
+          })
+        }
+      }
+    }
   }
 
   for (let index = 0; index < system.items.length; index += 1) {
@@ -599,6 +640,38 @@ export function validateDocument(
           severity: 'error',
           message: 'Two components occupy the same space.',
           itemIds: [a.id, b.id],
+        })
+      }
+    }
+  }
+
+  for (const host of system.items) {
+    const hostVariant = variantFor(host, catalog)
+    const decorBand = hostVariant && decorOccupiedBand(host, hostVariant)
+    if (!hostVariant || !decorBand || !decorFitsSurface(host, hostVariant)) continue
+
+    for (const item of system.items) {
+      if (
+        item.id === host.id ||
+        item.parentItemId ||
+        item.bayIndex !== host.bayIndex ||
+        item.face !== host.face
+      )
+        continue
+      const variant = variantFor(item, catalog)
+      if (!variant) continue
+      if (
+        occupiedBands(item, variant, document).some(
+          (band) =>
+            overlaps(decorBand.y, decorBand.height, band.y, band.height) &&
+            overlaps(decorBand.z, decorBand.depth, band.z, band.depth),
+        )
+      ) {
+        issues.push({
+          code: 'decor-clearance',
+          severity: 'error',
+          message: 'The display objects need more clear space above this surface.',
+          itemIds: [host.id, item.id],
         })
       }
     }
