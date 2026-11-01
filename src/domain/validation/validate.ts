@@ -12,7 +12,7 @@ import {
 } from '../placement/envelope'
 import { BAY_USABLE_WIDTH, carrierHeight } from '../placement/grid'
 import { resolveItemFinish } from '../plan/finish'
-import { allowedFaces, isWallMounted, runsAlongZ } from '../plan/system'
+import { allowedFaces, isWallMounted, wallTieDistance } from '../plan/system'
 import type { Plan, PlanItem } from '../plan/types'
 import { roomBoundaryOverflow } from '../supports/footprint'
 import {
@@ -130,16 +130,14 @@ function structureIssues({ plan, catalog, tracks }: Context): ValidationIssue[] 
   }
 
   if (system.mountingType === 'semi-wall') {
-    const { wallBracket, extensionBolts } = system.structureOptions
-    const extension = extensionBolts ? 65 : 0
-    const minimumReach = (wallBracket === 'short' ? 60 : 100) + extension
-    const maximumReach = (wallBracket === 'short' ? 70 : 110) + extension
-    const reach = runsAlongZ(system.placement) ? system.placement.x : system.placement.z
-    if (reach < minimumReach || reach > maximumReach) {
+    const maximum = wallTieDistance(system.structureOptions)
+    const minimum = maximum - 10
+    const { distance } = system.placement
+    if (distance < minimum || distance > maximum) {
       issues.push(
         advisory(
           'stability',
-          `Set the system ${minimumReach}–${maximumReach} mm from the back wall to match the selected brackets.`,
+          `Set the supports ${minimum}–${maximum} mm from the wall to match the selected brackets.`,
         ),
       )
     }

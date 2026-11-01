@@ -3,8 +3,9 @@ import type { Plan } from '../../domain/plan/types'
 import { isTwoSided } from '../../domain/plan/system'
 import { trackHoleHeights, usesHPosts, type SupportTrackPlan } from '../../domain/supports/tracks'
 import { aluminium, polishedMetal, rubber, finishMaterial } from './materials'
-import { box, cylinder, mm, plate, roundedBox } from './primitives'
+import { box, cylinder, mesh, mm, plate, roundedBox } from './primitives'
 import { mountingDepths, mountingProfile } from './mounting'
+import { reuse } from './reuse'
 
 function screw(x: number, y: number, z: number, shaftLength = 0) {
   const group = new THREE.Group()
@@ -24,6 +25,11 @@ function screw(x: number, y: number, z: number, shaftLength = 0) {
 }
 
 function trackSegment(height: number, holes: number[]) {
+  const key = [height, ...holes].map((value) => Math.round(value * 1e6)).join(' ')
+  return reuse(`E-track ${key}`, () => makeTrackSegment(height, holes))
+}
+
+function makeTrackSegment(height: number, holes: number[]) {
   const segment = new THREE.Group()
   segment.name = `${Math.round(height * 1000)} mm E-track segment`
   segment.add(box(0.02, height, 0.0015, aluminium, 0, height / 2, 0.00075))
@@ -39,8 +45,9 @@ function trackSegment(height: number, holes: number[]) {
     side.holes.push(hole)
   }
   // Circular holes go through the side fins; they are actual geometry.
+  const finGeometry = plate(side, 0.0015, aluminium).geometry
   for (const x of [-0.00925, 0, 0.00925]) {
-    const fin = plate(side, 0.0015, aluminium)
+    const fin = mesh(finGeometry, aluminium)
     fin.rotation.y = -Math.PI / 2
     fin.position.x = x
     fin.name = 'Perforated anodised E-profile fin'
@@ -175,16 +182,17 @@ function postSection(hPost: boolean, hollow = true) {
 
 function post(parent: THREE.Group, x: number, height: number, hPost: boolean, compressed: boolean) {
   const z = hPost ? -0.034 : -0.024
-  const section = postSection(hPost)
   const bottom = 0.045
   const top = height - (compressed ? 0.014 : 0.002)
-  const body = plate(section, top - bottom, aluminium)
+  const body = reuse(`Post ${hPost} ${top - bottom}`, () =>
+    plate(postSection(hPost), top - bottom, aluminium),
+  )
   body.rotation.x = Math.PI / 2
   body.position.set(x, (top + bottom) / 2, z)
   body.name = hPost ? 'H-post extrusion' : 'Concave X-post extrusion'
   parent.add(body)
   if (!compressed) {
-    const cap = plate(postSection(hPost, false), 0.002, rubber)
+    const cap = reuse(`Post cap ${hPost}`, () => plate(postSection(hPost, false), 0.002, rubber))
     cap.rotation.x = Math.PI / 2
     cap.position.set(x, height - 0.001, z)
     cap.name = 'Open post end cap'
@@ -208,16 +216,18 @@ function foot(parent: THREE.Group, x: number, z: number, single = false) {
   const armLength = single ? 0.34 : 0.365
   const padPosition = single ? 0.3375 : 0.3625
   for (const sign of single ? [1] : [-1, 1]) {
-    const shape = new THREE.Shape()
-    shape.moveTo(0, 0.045)
-    shape.lineTo(0, 0.145)
-    shape.lineTo(0.02, 0.145)
-    shape.lineTo(0.02, 0.067)
-    shape.lineTo(armLength, 0.067)
-    shape.lineTo(armLength, 0.029)
-    shape.lineTo(0.04, 0.029)
-    shape.closePath()
-    const arm = plate(shape, 0.02, aluminium)
+    const arm = reuse(`Foot ${armLength}`, () => {
+      const shape = new THREE.Shape()
+      shape.moveTo(0, 0.045)
+      shape.lineTo(0, 0.145)
+      shape.lineTo(0.02, 0.145)
+      shape.lineTo(0.02, 0.067)
+      shape.lineTo(armLength, 0.067)
+      shape.lineTo(armLength, 0.029)
+      shape.lineTo(0.04, 0.029)
+      shape.closePath()
+      return plate(shape, 0.02, aluminium)
+    })
     arm.rotation.y = (-sign * Math.PI) / 2
     arm.position.set(x, 0, z)
     arm.name = 'Stabilising outrigger foot'
@@ -346,7 +356,9 @@ export function addSupports(
         const tallMiddleRail =
           system.mountingType === 'floor-to-ceiling' && !hPost && postHeight > 3 && railIndex === 1
         const railHeight = tallMiddleRail ? 0.175 : 0.05
-        const brace = roundedBox(span - 0.045, railHeight, 0.015, aluminium, 0.0008)
+        const brace = reuse(`Cross rail ${span} ${railHeight}`, () =>
+          roundedBox(span - 0.045, railHeight, 0.015, aluminium, 0.0008),
+        )
         brace.position.set(x, y, postZ)
         brace.name = `${Math.round(railHeight * 1000)} mm cross rail`
         root.add(brace)

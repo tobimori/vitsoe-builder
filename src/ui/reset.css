@@ -13,13 +13,16 @@ body,
 }
 
 body {
-  overflow: hidden;
-  background: #f3f2ef;
-  color: #151515;
-  font-family: Univers, Helvetica, Arial, sans-serif;
-  font-size: 16px;
+  overflow: clip;
+  background: #fff;
+  color: #111111;
+  font-family: 'Inter Variable', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  font-size: 14px;
   line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   font-synthesis: none;
+  text-rendering: optimizeLegibility;
 }
 
 button,
@@ -35,7 +38,7 @@ button {
 }
 
 button:disabled {
-  cursor: not-allowed;
+  cursor: default;
 }
 
 @media (prefers-reduced-motion: reduce) {

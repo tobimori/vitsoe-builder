@@ -90,23 +90,61 @@ and a known subtotal when a structural price is unpublished.
 - Set the system colour and wood finish once; individual components can override
   them or return to the system finish. The same resolved finish determines the
   3D material, catalogue preview, price, and exported AR model.
+- Choose a component and its size, then place it in the view: it follows the
+  pointer, snaps to the bay and pin height under it, and takes the width of that
+  bay. Place several in a row, and press Escape or Done to finish. With a mouse,
+  drag a component from the catalogue straight into a bay.
 - Drag a component to another bay or pin height; double-click it for a closer view.
-- Turn on Render for an optional higher-quality GPU view.
-- Use the inspector for finishes, orientations, opening state, and front/back placement.
-- Use Front or Back above the scene to choose a side in compressed or freestanding
-  systems. The camera turns to that side, and the Add button names its destination.
-  Switching sides does not add an undo step.
+  It glides between positions, takes the width of a bay of the other width, and
+  slides to the nearest free hole when the one under the pointer is taken.
+- Choose 3D for a free view of the shaded system, Elevation for a straight view of
+  the active face, or Drawing for a line drawing in the style of Vitsœ's system
+  illustrations. Drawing always shows the active face from the same oblique angle:
+  the front is true to scale and depth goes up and to the right at half scale. It
+  pans and zooms, does not turn, and stays editable.
+- The left panel holds the plan's name and file menu, the Layers of the system,
+  and the Components catalogue. Layers lists each side, bay, component, accessory,
+  and support. Select a layer to select it in the view; double-click it for a closer
+  view.
+- The right panel shows the total price, sharing and AR, the Details of the
+  selection or of the whole system, and the Parts list. Use Details for finishes,
+  orientations, opening state, and front/back placement.
+- Tablets and phones on their side show one panel beside the view; phones held
+  upright show it under the view. That panel has every tab, and the plan's name
+  and file menu sit at the top of Details. Fields and buttons grow for fingers.
+  Drag with one finger to move a component or turn the view, and pinch to zoom.
+- Use Front or Back on the view to choose a side in compressed or freestanding
+  systems. The camera turns to that side, and orbiting round the system switches
+  side too. New components go to the side in view. Drop a dragged component on the
+  other side's button to move it there at the same bay and height, or rest on the
+  button until the view turns round and go on dragging it on that side. Switching
+  sides does not add an undo step.
+- Dimensions stay hidden until you need them. Point at a component to see its width,
+  depth, and pin height, or at a support for the run's distances to the corners, the
+  wall, and the ceiling. Hold Alt to see every dimension, or tick Dimensions to keep
+  them visible. A dragged component always shows where it would land. On a touch
+  screen, selecting a component shows its dimensions, and the ruler button on the
+  view keeps all of them visible.
+- Move the selected component with the arrow keys: left and right change the bay,
+  up and down change the pin height.
 - Use Delete or Backspace to remove the selection, including hosted accessories.
 - Undo with Ctrl/Cmd+Z; redo with Ctrl/Cmd+Shift+Z or Ctrl+Y.
-- Escape closes a panel or clears the selection. Text fields retain normal editing shortcuts.
+- Escape stops placing or clears the selection. Text fields retain normal editing shortcuts.
 - Plans save in the URL as a compressed configuration, with local browser storage
   as a backup. Copy link opens the same plan on another device. JSON import/export
   is also available.
 
+Every system stands along one of the four walls of a rectangular room, with its
+front facing into the room. Position, in the system's Details, shows the room from
+above: choose a wall there, and drag the system along it. Its position is measured from the wall's
+corners to the centres of the outer supports, and the view shows the same chain
+of dimensions. Walls between the camera and the system are hidden.
+
 Selecting a track or post selects its connected support run. Moving it preserves
 the bay centres: wall-mounted systems move along the wall and vertically,
 semi-wall systems move along the wall at their bracket depth, and compressed or
-freestanding systems move across the floor. These are changes to the plan;
+freestanding systems also move out from the wall. A run stops at the room's
+corners and holds at the centre of its wall. These are changes to the plan;
 installed wall and ceiling fixings would need repositioning.
 
 Catalogue illustrations are cached still renders of the component geometry,
@@ -119,18 +157,6 @@ price. Record sleeves are approximated as 315 × 315 × 5 mm; the 606 planning
 guide recommends the 655 × 360 mm shelf for vinyl storage. The art books use the
 published 210 × 260 mm format of TASCHEN's 96-page Basic Art editions, with an
 approximately 14 mm spine.
-
-## Presentation render
-
-Render is an opt-in GPU presentation view and starts disabled on all devices,
-including phones. It progressively lights the same configured model geometry
-used by the editor and AR export. Rendering stops after 128 samples or 20 seconds
-of active work, whichever comes first, and does not continue drawing once the
-image is complete.
-
-Moving the camera or changing the configuration restarts the image. Use Cancel
-render, Back to edit, or Escape to return immediately to normal editing without
-changing the plan or camera.
 
 Surface colours, roughness, anodised aluminium, wood grain, and felt texture are
 visual approximations. Confirm final finishes from physical samples.

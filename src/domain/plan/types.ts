@@ -19,14 +19,15 @@ export interface Bay {
   centreWidth: BayWidth
 }
 
-export type Rotation = 0 | 90 | 180 | 270
+export type Wall = 'back' | 'left' | 'right' | 'front'
 
 export interface Placement {
-  /** Distance of the run's left end from the left wall. */
-  x: Millimetres
-  /** Distance of the supports from the back wall. */
-  z: Millimetres
-  rotation: Rotation
+  /** The wall the run stands along. Its front faces into the room, away from the wall. */
+  wall: Wall
+  /** From the wall's left corner, as seen facing the wall, to the first support's centre. */
+  offset: Millimetres
+  /** From the wall to the centre line of the supports. */
+  distance: Millimetres
 }
 
 export interface SystemFinish {

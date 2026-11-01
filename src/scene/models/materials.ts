@@ -113,7 +113,7 @@ export function finishMaterial(finish: Finish, surface: Surface = 'steel') {
           ? '#a3a6a7'
           : finish === 'beech'
             ? '#cdab7f'
-            : '#deded3',
+            : '#e6e5df',
     metalness: finish === 'silver' && surface === 'steel' ? 0.38 : 0,
     roughness: finish === 'beech' ? 0.43 : surface === 'panel' ? 0.3 : 0.42,
     roughnessMap:

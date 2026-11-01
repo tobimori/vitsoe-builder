@@ -3,29 +3,9 @@ import type { ProductVariant } from '../../domain/catalog/types'
 import { isDecorHost } from '../../domain/catalog/families'
 import { DECOR_COUNT_LIMITS, decorFitsSurface } from '../../domain/decor/decor'
 import type { PlanItem, ShelfDecor } from '../../domain/plan/types'
-import { SelectField } from '../../ui/fields'
-import { colors } from '../../ui/tokens.stylex'
-
-const styles = stylex.create({
-  editor: {
-    marginTop: 18,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopStyle: 'solid',
-    borderTopColor: colors.divider,
-  },
-  heading: {
-    margin: '0 0 4px',
-    fontSize: 15,
-    fontWeight: 500,
-  },
-  note: {
-    margin: '9px 0 0',
-    color: colors.muted,
-    fontSize: 12,
-    lineHeight: 1.4,
-  },
-})
+import { FieldRow, NumberField, Rows, Segmented, SelectField } from '../../ui/fields'
+import { Section } from '../../ui/section'
+import { text } from '../../ui/text'
 
 const arrangements = [
   { value: 'upright', label: 'Upright' },
@@ -80,58 +60,62 @@ export function DecorEditor({
   }
 
   return (
-    <section aria-labelledby="decor-heading" {...stylex.props(styles.editor)}>
-      <h3 id="decor-heading" {...stylex.props(styles.heading)}>
-        Decor
-      </h3>
-      <SelectField
-        label="Contents"
-        value={decor?.kind ?? 'none'}
-        options={[
-          { value: 'none', label: 'None' },
-          { value: 'vinyl', label: 'Vinyl records', disabled: !vinylFits },
-          { value: 'art-books', label: 'TASCHEN art books', disabled: !booksFit },
-        ]}
-        onChange={setKind}
-      />
-      {decor && (
-        <>
-          <SelectField
-            label="Arrangement"
-            value={decor.arrangement}
-            options={arrangements}
-            onChange={(arrangement) => setDecor({ arrangement })}
-          />
-          <SelectField
-            label="Quantity"
-            value={decor.count}
-            options={Array.from({ length: DECOR_COUNT_LIMITS[decor.kind] }, (_, index) => ({
-              value: index + 1,
-              label: String(index + 1),
-            }))}
-            onChange={(count) => setDecor({ count })}
-          />
-          <SelectField
-            label="Placement"
-            value={decor.position}
-            options={positions}
-            onChange={(position) => setDecor({ position })}
-          />
-        </>
-      )}
+    <Section title="Display">
+      <Rows>
+        <SelectField
+          label="Contents"
+          value={decor?.kind ?? 'none'}
+          options={[
+            { value: 'none', label: 'None' },
+            { value: 'vinyl', label: 'Vinyl records', disabled: !vinylFits },
+            { value: 'art-books', label: 'TASCHEN art books', disabled: !booksFit },
+          ]}
+          onChange={setKind}
+        />
+        {decor && (
+          <>
+            <FieldRow label="Arrangement">
+              <Segmented
+                label="Arrangement"
+                value={decor.arrangement}
+                options={arrangements}
+                onChange={(arrangement) => setDecor({ arrangement })}
+              />
+            </FieldRow>
+            <NumberField
+              label="Quantity"
+              value={decor.count}
+              min={1}
+              max={DECOR_COUNT_LIMITS[decor.kind]}
+              step={1}
+              unit=""
+              stepper
+              onChange={(count) => setDecor({ count })}
+            />
+            <FieldRow label="Placement">
+              <Segmented
+                label="Placement"
+                value={decor.position}
+                options={positions}
+                onChange={(position) => setDecor({ position })}
+              />
+            </FieldRow>
+          </>
+        )}
+      </Rows>
       {!vinylFits && !booksFit && (
-        <p {...stylex.props(styles.note)}>
+        <p {...stylex.props(text.hint)}>
           This surface is too shallow for the available display objects.
         </p>
       )}
       {!vinylFits && booksFit && (
-        <p {...stylex.props(styles.note)}>Vinyl needs a 360 mm deep shelf.</p>
+        <p {...stylex.props(text.hint)}>Vinyl needs a 360 mm deep shelf.</p>
       )}
       {decor?.kind === 'vinyl' && item.productId === 'shelf' && variant.width > 655 && (
-        <p {...stylex.props(styles.note)}>
+        <p {...stylex.props(text.hint)}>
           For record storage, Vitsœ recommends the 655 × 360 mm shelf.
         </p>
       )}
-    </section>
+    </Section>
   )
 }

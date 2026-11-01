@@ -1,61 +1,34 @@
 import * as THREE from 'three'
+import { isInkLine } from '../drawing/lines'
 import type { Face } from '../../domain/types'
 
-export function faceTargetScreen(
-  start: THREE.Vector2,
-  projected: THREE.Vector2,
-  viewportLeft: number,
-  viewportWidth: number,
-) {
-  const gesture = projectedFaceGesture(start, projected, start, 'front', 'front')
-  if (gesture.enabled) return projected.clone()
+const misfit = new THREE.MeshBasicMaterial({
+  color: '#c4161c',
+  transparent: true,
+  opacity: 0.4,
+  depthWrite: false,
+})
 
-  // Only the affordance moves sideways when a frontal camera overlaps the faces.
-  const middle = viewportLeft + viewportWidth / 2
-  const sign = start.x > middle ? -1 : 1
-  return new THREE.Vector2(
-    start.x + sign * 80,
-    start.y + THREE.MathUtils.clamp(projected.y - start.y, -24, 24),
-  )
+const ownMaterials = new WeakMap<THREE.Mesh, THREE.Mesh['material']>()
+
+/** Shows a ghost in its own materials, or in translucent red where it does not fit. */
+export function showFit(ghost: THREE.Object3D, fits: boolean) {
+  ghost.traverse((child) => {
+    // The drawing's lines stay as they are and outline the ghost
+    if (!(child instanceof THREE.Mesh) || isInkLine(child)) return
+    if (!ownMaterials.has(child)) ownMaterials.set(child, child.material)
+    child.material = fits ? (ownMaterials.get(child) ?? child.material) : misfit
+  })
 }
 
-// Only a deliberate pass through the opposite-side target changes face.
-// A largely vertical or overlapping projection is ambiguous: use the side buttons.
-export function projectedFaceGesture(
-  start: THREE.Vector2,
-  destination: THREE.Vector2,
-  pointer: THREE.Vector2,
-  originFace: Face,
-  currentFace: Face,
-) {
-  const direction = destination.clone().sub(start)
-  const distance = direction.length()
-  const enabled = distance >= 56 && Math.abs(direction.x) >= Math.max(36, distance * 0.4)
-  if (!enabled) return { face: currentFace, depthGesture: false, enabled }
-
-  direction.divideScalar(distance)
-  const motion = pointer.clone().sub(start)
-  const progress = motion.dot(direction) / distance
-  const perpendicular = Math.abs(motion.x * direction.y - motion.y * direction.x)
-  const depthGesture = perpendicular < 24 && progress > 0.15 && progress < 1.4
-  let face = currentFace
-  if (pointer.distanceTo(destination) < 24) face = originFace === 'front' ? 'back' : 'front'
-  else if (pointer.distanceTo(start) < 14) face = originFace
-
-  return { face, depthGesture, enabled }
+export function setVisible(objects: THREE.Object3D[], visible: boolean) {
+  for (const object of objects) object.visible = visible
 }
 
+/** A copy of the components that travel with a dragged one, posed relative to `origin`. */
 export function makeDragGhost(assembly: THREE.Group, itemIds: string[], origin: THREE.Object3D) {
   const ghost = new THREE.Group()
   ghost.userData.dragPreview = true
-  const material = new THREE.MeshBasicMaterial({
-    color: '#0076ad',
-    transparent: true,
-    opacity: 0.38,
-    depthWrite: false,
-    // Destination previews remain legible when crossing behind opaque furniture.
-    depthTest: false,
-  })
   origin.updateMatrixWorld(true)
   const inverse = origin.matrix.clone().invert()
   for (const object of assembly.children) {
@@ -65,36 +38,36 @@ export function makeDragGhost(assembly: THREE.Group, itemIds: string[], origin: 
     copy.matrix.decompose(copy.position, copy.quaternion, copy.scale)
     copy.traverse((child) => {
       child.raycast = () => {}
-      if (child instanceof THREE.Mesh) {
-        child.material = material
-        child.renderOrder = 1000
-        child.castShadow = false
-        child.receiveShadow = false
-      }
     })
     ghost.add(copy)
   }
   ghost.position.copy(origin.position)
-  ghost.quaternion.copy(origin.quaternion)
-  return { ghost, material }
+  // Copying the quaternion would turn a back face's half turn into (π, 0, π)
+  ghost.rotation.copy(origin.rotation)
+  return ghost
 }
 
-// Bounds in the ghost's own axes, so room yaw and the selected face do not
-// inflate dimensions. Only the selected component is measured, not accessories.
-export function dragPreviewBounds(ghost: THREE.Group, itemId: string) {
-  ghost.updateWorldMatrix(true, true)
-  const inverse = ghost.matrixWorld.clone().invert()
+/** Bounds of an object's meshes in the axes of `frame`, so room yaw and the face do not inflate them. */
+export function ownBounds(object: THREE.Object3D, frame: THREE.Object3D = object) {
+  frame.updateWorldMatrix(true, true)
+  object.updateWorldMatrix(true, true)
+  const inverse = frame.matrixWorld.clone().invert()
   const bounds = new THREE.Box3()
-  for (const child of ghost.children) {
-    if (child.userData.itemId !== itemId) continue
-    child.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return
-      if (!object.geometry.boundingBox) object.geometry.computeBoundingBox()
-      if (!object.geometry.boundingBox) return
-      const transform = inverse.clone().multiply(object.matrixWorld)
-      bounds.union(object.geometry.boundingBox.clone().applyMatrix4(transform))
-    })
-  }
+  object.traverse((child) => {
+    if (!(child instanceof THREE.Mesh) || isInkLine(child)) return
+    if (!child.geometry.boundingBox) child.geometry.computeBoundingBox()
+    if (!child.geometry.boundingBox) return
+    const transform = inverse.clone().multiply(child.matrixWorld)
+    bounds.union(child.geometry.boundingBox.clone().applyMatrix4(transform))
+  })
+  return bounds
+}
+
+// Only the dragged component is measured, not the accessories that travel with it
+export function dragPreviewBounds(ghost: THREE.Group, itemId: string) {
+  const bounds = new THREE.Box3()
+  for (const child of ghost.children)
+    if (child.userData.itemId === itemId) bounds.union(ownBounds(child, ghost))
   return bounds
 }
 

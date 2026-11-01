@@ -11,7 +11,13 @@ export interface LabelStyle {
   radius?: number
 }
 
+/** Which side of its position a label sits on: centred, to the right, or to the left. */
+export type LabelAlign = 'centre' | 'right' | 'left'
+
 const ignoreRaycast = () => {}
+
+/** The space between a label set to one side and its position, in CSS pixels. */
+const LABEL_GAP = 6
 
 function drawLabel(text: string, style: LabelStyle) {
   const ratio = Math.min(window.devicePixelRatio || 1, 3)
@@ -48,13 +54,17 @@ function LabelSprite({
   position,
   text,
   style,
+  align = 'centre',
 }: {
   position: THREE.Vector3Tuple
   text: string
   style: LabelStyle
+  align?: LabelAlign
 }) {
   const sprite = useRef<THREE.Sprite>(null)
   const [label] = useState(() => drawLabel(text, style))
+  const gap = LABEL_GAP / label.width
+  const centre = new THREE.Vector2(align === 'right' ? -gap : align === 'left' ? 1 + gap : 0.5, 0.5)
 
   useEffect(() => () => label.texture.dispose(), [label])
 
@@ -65,7 +75,13 @@ function LabelSprite({
   })
 
   return (
-    <sprite ref={sprite} position={position} renderOrder={30} raycast={ignoreRaycast}>
+    <sprite
+      ref={sprite}
+      position={position}
+      center={centre}
+      renderOrder={30}
+      raycast={ignoreRaycast}
+    >
       <spriteMaterial
         map={label.texture}
         sizeAttenuation={false}
@@ -83,6 +99,7 @@ export function ScreenLabel(props: {
   position: THREE.Vector3Tuple
   text: string
   style: LabelStyle
+  align?: LabelAlign
 }) {
   return <LabelSprite key={props.text} {...props} />
 }

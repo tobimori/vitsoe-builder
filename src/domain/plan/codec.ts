@@ -52,9 +52,9 @@ const planSchema = v.object({
     ),
     items: v.pipe(v.array(item), v.maxLength(500)),
     placement: v.object({
-      x: whole(0, 20000),
-      z: whole(0, 20000),
-      rotation: v.picklist([0, 90, 180, 270]),
+      wall: v.picklist(['back', 'left', 'right', 'front']),
+      offset: whole(0, 20000),
+      distance: whole(0, 20000),
     }),
     trackMode: v.picklist(['automatic', 'manual']),
     railHeight: whole(110, 10000),

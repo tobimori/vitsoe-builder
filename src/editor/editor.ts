@@ -2,6 +2,7 @@ import { useAtom, useSelector } from '@xstate/store-react'
 import { catalog } from '../domain/catalog/catalog'
 import { initialPlan } from '../domain/plan/defaults'
 import { resolveInitialPlan } from '../domain/plan/share'
+import type { Plan } from '../domain/plan/types'
 import { createEditor, createEditorSelectors, type EditorContext } from './store'
 
 export const STORAGE_KEY = 'vitsoe-606-plan'
@@ -23,6 +24,14 @@ export const selectors = createEditorSelectors(editor)
 
 export function useEditor<T>(select: (context: EditorContext) => T) {
   return useSelector(editor, (snapshot) => select(snapshot.context))
+}
+
+/**
+ * Edits the plan as it is when the event happens. Handlers that close over the rendered plan
+ * change with every edit, which re-renders their fields for unrelated changes.
+ */
+export function editPlan(change: (plan: Plan) => Plan) {
+  editor.trigger.edit({ plan: change(selectors.plan.get()) })
 }
 
 export function usePlan() {

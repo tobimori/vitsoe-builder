@@ -61,7 +61,7 @@ describe('saved-plan parsing', () => {
     }))
     inProgress.system.mountingType = 'floor-to-ceiling'
     inProgress.system.mountHeight = 205
-    inProgress.system.placement.z = 600
+    inProgress.system.placement.distance = 600
 
     const parsed = parse(inProgress)
     expect(parsed).toBeDefined()

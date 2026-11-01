@@ -7,6 +7,8 @@ import type { CatalogProduct, ProductVariant } from '../../domain/catalog/types'
 import type { Colour, Finish } from '../../domain/types'
 import { disposeAssembly } from '../models/assembly'
 import { makeComponent, type ModelItem } from '../models/components'
+import { createInk, drawLines } from '../drawing/lines'
+import { lineOfSight, ObliqueCamera } from '../drawing/ObliqueCamera'
 import { createStudioEnvironment } from '../studio/environment'
 import { studioLighting } from '../studio/lighting'
 
@@ -17,6 +19,8 @@ export interface CatalogPreviewProps {
   frontFinish?: Colour
   width?: number
   height?: number
+  /** A line drawing like Vitsœ's component thumbnails, instead of a studio still. */
+  drawing?: boolean
 }
 
 type PreviewEngine = {
@@ -39,8 +43,6 @@ function previewEngine() {
     powerPreference: 'high-performance',
   })
   renderer.setPixelRatio(1)
-  renderer.setClearColor('#f2f2ed', 0)
-  renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFShadowMap
@@ -50,7 +52,7 @@ function previewEngine() {
   scene.environment = environment.texture
   scene.environmentIntensity = studioLighting.environment
   scene.add(new THREE.AmbientLight('#ffffff', studioLighting.ambient))
-  scene.add(new THREE.HemisphereLight('#fffdf8', '#89867d', studioLighting.hemisphere))
+  scene.add(new THREE.HemisphereLight('#ffffff', '#a8a8a4', studioLighting.hemisphere))
   const key = new THREE.DirectionalLight('#fffdf8', studioLighting.key)
   key.position.set(-3, 4.5, 4)
   key.castShadow = true
@@ -61,7 +63,8 @@ function previewEngine() {
   key.shadow.camera.far = 12
   key.shadow.bias = -0.0001
   key.shadow.normalBias = 0.001
-  key.shadow.radius = 1
+  key.shadow.radius = 3
+  key.shadow.intensity = studioLighting.shadow
   const fill = new THREE.DirectionalLight('#ffffff', studioLighting.fill)
   fill.position.set(4, 2, -2)
   scene.add(key, fill)
@@ -112,18 +115,36 @@ function buildPreview(props: CatalogPreviewProps) {
   return { model, showBack, accessory: props.product.category === 'accessories' && !showBack }
 }
 
-function renderPreview(props: CatalogPreviewProps) {
-  const { renderer, scene, camera } = previewEngine()
-  const width = Math.max(160, Math.min(480, props.width ?? 320))
-  const height = Math.max(100, Math.min(360, props.height ?? 200))
+interface Still {
+  model: THREE.Group
+  /** Where the orthographic camera looks from, relative to the model's centre. */
+  view: THREE.Vector3
+}
+
+function snapshot(model: THREE.Group, camera: THREE.Camera, cleanUp?: () => void) {
+  const { renderer, scene } = previewEngine()
+  scene.add(model)
+  try {
+    renderer.render(scene, camera)
+    return renderer.domElement.toDataURL('image/png')
+  } finally {
+    scene.remove(model)
+    cleanUp?.()
+    disposeAssembly(model)
+  }
+}
+
+function renderStill({ model, view }: Still, width: number, height: number) {
+  const { renderer, camera } = previewEngine()
   renderer.setSize(width, height, false)
-  const { model, showBack, accessory } = buildPreview(props)
+  renderer.toneMapping = THREE.NeutralToneMapping
+  renderer.setClearColor('#ffffff', 0)
+
   const bounds = new THREE.Box3().setFromObject(model)
   const centre = bounds.getCenter(new THREE.Vector3())
   model.position.sub(centre)
   model.updateMatrixWorld(true)
-  scene.add(model)
-  camera.position.set(showBack ? -2 : 2, accessory ? 3.5 : 1.8, showBack ? -3.5 : 3.5)
+  camera.position.copy(view)
   camera.lookAt(0, 0, 0)
   camera.updateMatrixWorld(true)
   const viewBounds = new THREE.Box3()
@@ -141,16 +162,39 @@ function renderPreview(props: CatalogPreviewProps) {
   camera.top = halfHeight
   camera.bottom = -halfHeight
   camera.updateProjectionMatrix()
-  try {
-    renderer.render(scene, camera)
-    return renderer.domElement.toDataURL('image/png')
-  } finally {
-    scene.remove(model)
-    disposeAssembly(model)
+  return snapshot(model, camera)
+}
+
+const drawingCamera = new ObliqueCamera()
+const front = new THREE.Vector3(0, 0, 1)
+
+/** The model's front drawn in lines from the same angle as the drawing view. */
+function renderDrawing(model: THREE.Group, width: number, height: number) {
+  const { renderer } = previewEngine()
+  renderer.setSize(width, height, false)
+  renderer.toneMapping = THREE.NoToneMapping
+  renderer.setClearColor('#ffffff', 1)
+
+  const ink = createInk('#1c1c1c', 1.25)
+  ink.resolution.set(width, height)
+  const restore = drawLines(model, lineOfSight(front), ink)
+  drawingCamera.setSize(width, height)
+  drawingCamera.frame(new THREE.Box3().setFromObject(model), front, { x: 0.86, y: 0.86 })
+  return snapshot(model, drawingCamera, () => {
+    restore()
+    ink.dispose()
+  })
+}
+
+function productStill(props: CatalogPreviewProps): Still {
+  const { model, showBack, accessory } = buildPreview(props)
+  return {
+    model,
+    view: new THREE.Vector3(showBack ? -2 : 2, accessory ? 3.5 : 1.8, showBack ? -3.5 : 3.5),
   }
 }
 
-function imageFor(key: string, props: CatalogPreviewProps) {
+function imageFor(key: string, render: () => string) {
   const cached = images.get(key)
   if (cached) return Promise.resolve(cached)
   const existing = pending.get(key)
@@ -162,7 +206,7 @@ function imageFor(key: string, props: CatalogPreviewProps) {
           // One still at a time, yielding between cards; no animation loop.
           window.setTimeout(() => {
             try {
-              const image = renderPreview(props)
+              const image = render()
               images.set(key, image)
               resolve(image)
             } catch (error) {
@@ -199,28 +243,80 @@ const styles = stylex.create({
 
 /** A cached still of the real component model, so cards never hold a live WebGL canvas. */
 export function CatalogPreview(props: CatalogPreviewProps) {
+  const width = props.width ?? 320
+  const height = props.height ?? 200
   const key = JSON.stringify([
     props.product.id,
     props.variant.id,
-    props.finish,
-    props.frontFinish,
-    props.width ?? 320,
-    props.height ?? 200,
+    props.drawing ? 'drawing' : [props.finish, props.frontFinish],
+    width,
+    height,
   ])
-  return <PreviewImage key={key} cacheKey={key} {...props} />
-}
-
-function PreviewImage({ cacheKey, ...props }: CatalogPreviewProps & { cacheKey: string }) {
-  const container = useRef<HTMLDivElement>(null)
-  const width = props.width ?? 320
-  const height = props.height ?? 200
-  const [image, setImage] = useState(() => images.get(cacheKey))
-  const [failed, setFailed] = useState(false)
   const materialLabel =
     fixedMaterialLabel(props.product.id)?.toLowerCase() ??
     (props.product.id === 'drawer-divider' ? 'black laminate' : props.finish)
 
-  const render = useEffectEvent(() => imageFor(cacheKey, props))
+  return (
+    <PreviewImage
+      key={key}
+      cacheKey={key}
+      alt={props.drawing ? props.product.name : `${props.product.name} in ${materialLabel}`}
+      width={width}
+      height={height}
+      render={() =>
+        props.drawing
+          ? renderDrawing(buildPreview(props).model, width, height)
+          : renderStill(productStill(props), width, height)
+      }
+    />
+  )
+}
+
+/** A line drawing of a model, rendered once and cached like the component stills. */
+export function DrawingPreview({
+  cacheKey,
+  alt,
+  width,
+  height,
+  build,
+}: {
+  cacheKey: string
+  alt: string
+  width: number
+  height: number
+  build: () => THREE.Group
+}) {
+  const key = `drawing-${cacheKey}-${width}x${height}`
+  return (
+    <PreviewImage
+      key={key}
+      cacheKey={key}
+      alt={alt}
+      width={width}
+      height={height}
+      render={() => renderDrawing(build(), width, height)}
+    />
+  )
+}
+
+function PreviewImage({
+  cacheKey,
+  alt,
+  width,
+  height,
+  render,
+}: {
+  cacheKey: string
+  alt: string
+  width: number
+  height: number
+  render: () => string
+}) {
+  const container = useRef<HTMLDivElement>(null)
+  const [image, setImage] = useState(() => images.get(cacheKey))
+  const [failed, setFailed] = useState(false)
+
+  const request = useEffectEvent(() => imageFor(cacheKey, render))
 
   useEffect(() => {
     const element = container.current
@@ -231,7 +327,7 @@ function PreviewImage({ cacheKey, ...props }: CatalogPreviewProps & { cacheKey: 
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return
         observer.disconnect()
-        render().then(
+        request().then(
           (image) => {
             if (active) setImage(image)
           },
@@ -253,12 +349,7 @@ function PreviewImage({ cacheKey, ...props }: CatalogPreviewProps & { cacheKey: 
   return (
     <div ref={container} {...stylex.props(styles.frame(`${width} / ${height}`))}>
       {image ? (
-        <img
-          src={image}
-          alt={`${props.product.name} in ${materialLabel}`}
-          draggable={false}
-          {...stylex.props(styles.image)}
-        />
+        <img src={image} alt={alt} draggable={false} {...stylex.props(styles.image)} />
       ) : failed ? (
         <span {...stylex.props(styles.failed)}>Preview unavailable</span>
       ) : null}

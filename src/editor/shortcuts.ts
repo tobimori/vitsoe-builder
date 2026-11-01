@@ -1,5 +1,12 @@
 import { editor } from './editor'
 
+const nudges: Record<string, { bays: number; pitches: number }> = {
+  ArrowUp: { bays: 0, pitches: 1 },
+  ArrowDown: { bays: 0, pitches: -1 },
+  ArrowLeft: { bays: -1, pitches: 0 },
+  ArrowRight: { bays: 1, pitches: 0 },
+}
+
 export function bindShortcuts() {
   window.addEventListener('keydown', (event) => {
     const target = event.target
@@ -13,11 +20,14 @@ export function bindShortcuts() {
       editor.trigger.escape({ editing })
       return
     }
-    if (drag || editing) return
+    if (drag || editing || event.defaultPrevented) return
 
     const key = event.key.toLowerCase()
     const modifier = event.metaKey || event.ctrlKey
     const itemSelected = selection?.type === 'item'
+    // Arrow keys belong to focused controls such as tabs and segmented buttons
+    const onStage = target === document.body || target instanceof HTMLCanvasElement
+    const nudge = nudges[event.key]
 
     if (modifier && key === 'z') {
       event.preventDefault()
@@ -32,6 +42,9 @@ export function bindShortcuts() {
     } else if ((key === 'delete' || key === 'backspace') && itemSelected) {
       event.preventDefault()
       editor.trigger.deleteSelected()
+    } else if (nudge && itemSelected && onStage && !modifier) {
+      event.preventDefault()
+      editor.trigger.nudgeSelected(nudge)
     }
   })
 }

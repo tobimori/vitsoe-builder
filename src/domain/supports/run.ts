@@ -1,13 +1,14 @@
 import type { Catalog } from '../catalog/catalog'
-import { hasIntegratedTable, isWallMounted, runsAlongZ, setMountHeight } from '../plan/system'
+import { hasIntegratedTable, isWallMounted, setMountHeight } from '../plan/system'
 import type { Plan } from '../plan/types'
 import type { Millimetres } from '../types'
 import { roomBoundaryOverflow } from './footprint'
 import { itemsHaveTrackHeightError } from './tracks'
 
+/** A run position along its wall, from the wall, and above the floor. */
 export interface SupportRunMove {
-  x: Millimetres
-  z: Millimetres
+  offset: Millimetres
+  distance: Millimetres
   mountHeight: Millimetres
 }
 
@@ -17,8 +18,6 @@ export interface SupportRunMove {
  */
 export function moveSupportRun(plan: Plan, move: SupportRunMove): Plan {
   const { placement, mountingType } = plan.system
-  const wallBound = isWallMounted(mountingType)
-  const alongZ = runsAlongZ(placement)
 
   const moved: Plan = {
     ...plan,
@@ -26,8 +25,10 @@ export function moveSupportRun(plan: Plan, move: SupportRunMove): Plan {
       ...plan.system,
       placement: {
         ...placement,
-        x: Math.max(0, Math.round(wallBound && alongZ ? placement.x : move.x)),
-        z: Math.max(0, Math.round(wallBound && !alongZ ? placement.z : move.z)),
+        offset: Math.max(0, Math.round(move.offset)),
+        distance: isWallMounted(mountingType)
+          ? placement.distance
+          : Math.max(0, Math.round(move.distance)),
       },
     },
   }

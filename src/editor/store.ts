@@ -1,7 +1,9 @@
 import { createAtom, createStore } from '@xstate/store'
 import * as v from 'valibot'
 import { catalog } from '../domain/catalog/catalog'
+import { sizedForBay } from '../domain/catalog/options'
 import {
+  canPlaceItem,
   itemTreeIds,
   placeComponent,
   proposeItemDuplicate,
@@ -9,9 +11,11 @@ import {
 } from '../domain/placement/proposals'
 import { snapPinHeight } from '../domain/placement/grid'
 import { initialPlan } from '../domain/plan/defaults'
-import { changeMountingType } from '../domain/plan/system'
-import type { Plan, PlanItem } from '../domain/plan/types'
+import { allowedFaces, changeMountingType } from '../domain/plan/system'
+import type { Plan, PlanItem, Wall } from '../domain/plan/types'
+import { placeOnWall } from '../domain/plan/walls'
 import { buildPartsList } from '../domain/pricing/parts'
+import { fitPlacement } from '../domain/supports/footprint'
 import { proposeSupportRunMove, type SupportRunMove } from '../domain/supports/run'
 import { deriveSupportTrackPlans } from '../domain/supports/tracks'
 import type { Face, MountingType } from '../domain/types'
@@ -26,16 +30,16 @@ import {
 
 export type Selection = { type: 'item'; id: string } | { type: 'support'; index: number } | null
 
-export type View = 'orbit' | Face
+/**
+ * A free 3D view, a straight elevation of the active face, or a fixed line drawing
+ * of the active face like Vitsœ's system illustrations.
+ */
+export type View = 'orbit' | 'elevation' | 'drawing'
 
-export type Overlay = 'catalog' | 'parts' | 'configuration' | null
+/** The left panel has the layers and the catalogue; the right one, details and parts. */
+export type Tab = 'layers' | 'components' | 'details' | 'parts'
 
-export interface RenderStatus {
-  phase: 'idle' | 'loading' | 'rendering' | 'complete' | 'error'
-  /** Completed fraction from 0 to 1 when the renderer can measure it. */
-  progress?: number
-  message?: string
-}
+const leftTabs: readonly Tab[] = ['layers', 'components']
 
 export interface DragStatus {
   itemId: string
@@ -45,18 +49,28 @@ export interface DragStatus {
   duplicate: boolean
 }
 
+/** A catalogue component being placed into the view, sized by the bay it goes into. */
+export interface Placing {
+  productId: string
+  /** The product option, see `productOptions`. */
+  option: string
+  /** Dragged from the catalogue: it lands where the drag ends, once. */
+  fromCatalogue?: boolean
+}
+
 export interface EditorContext {
   history: HistoryState<Plan>
   selection: Selection
-  /** The face that new components are added to. */
+  /** The face the camera looks at; new components are added to it. */
   activeFace: Face
   view: View
   showDimensions: boolean
-  rendering: boolean
-  renderStatus: RenderStatus | null
   drag: DragStatus | null
-  overlay: Overlay
-  configurationTab: 'system' | 'room'
+  placing: Placing | null
+  leftTab: Tab
+  rightTab: Tab
+  /** The tab chosen last; a phone shows one panel at a time. */
+  tab: Tab
   notice: string | null
   saved: boolean
 }
@@ -71,12 +85,12 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
     selection: null,
     activeFace: 'front',
     view: 'orbit',
-    showDimensions: true,
-    rendering: false,
-    renderStatus: null,
+    showDimensions: false,
     drag: null,
-    overlay: null,
-    configurationTab: 'system',
+    placing: null,
+    leftTab: 'layers',
+    rightTab: 'details',
+    tab: 'details',
     notice,
     saved: false,
   }
@@ -87,6 +101,12 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
   })
 
   const notify = (state: EditorContext, notice: string): EditorContext => ({ ...state, notice })
+
+  const withTab = (state: EditorContext, tab: Tab): EditorContext => ({
+    ...state,
+    ...(leftTabs.includes(tab) ? { leftTab: tab } : { rightTab: tab }),
+    tab,
+  })
 
   const selectedItem = ({ selection, history }: EditorContext) => {
     if (selection?.type !== 'item') return undefined
@@ -133,9 +153,11 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
     const proposal = proposeItemDuplicate(state.history.present, catalog, candidate, makeId)
     if (!proposal?.valid) return notify(state, 'There is no clear space for that copy.')
 
+    const original = state.history.present.system.items.find((item) => item.id === candidate.id)
     return {
       ...commit(state, proposal.plan),
-      activeFace: proposal.candidate.face,
+      activeFace:
+        proposal.candidate.face !== original?.face ? proposal.candidate.face : state.activeFace,
       selection: { type: 'item', id: proposal.candidate.id },
     }
   }
@@ -144,39 +166,109 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
     context,
     schemas: {
       emitted: {
+        /** Frames the whole system from the active face. */
         fitCamera: v.object({}),
+        /** Turns the camera to the active face, keeping its distance. */
+        turnCamera: v.object({}),
         cancelDrag: v.object({}),
+        zoomTo: v.object({ itemId: v.string() }),
       },
     },
     on: {
       edit: (state, { plan }: { plan: Plan }) => commit(state, plan),
 
-      load: (state, { plan, notice }: { plan: Plan; notice: string }) => ({
+      load: (state, { plan, notice }: { plan: Plan; notice: string }, enqueue) => {
+        enqueue.emit.fitCamera({})
+        return {
+          ...state,
+          history: createHistory(plan),
+          selection: null,
+          placing: null,
+          activeFace: 'front',
+          notice,
+        }
+      },
+
+      /** Shows a plan while it is dragged, without a step in the history. */
+      previewPlan: (state, { plan }: { plan: Plan }) => ({
         ...state,
-        history: createHistory(plan),
-        selection: null,
-        notice,
+        history: { ...state.history, present: plan },
+      }),
+
+      /** Ends a preview as one step from the plan before it. */
+      commitPreview: (state, { from }: { from: Plan }) => ({
+        ...state,
+        history: commitHistory({ ...state.history, present: from }, state.history.present),
       }),
 
       undo: (state) => ({ ...state, history: undoHistory(state.history) }),
       redo: (state) => ({ ...state, history: redoHistory(state.history) }),
 
-      changeMountingType: (state, { mountingType }: { mountingType: MountingType }) => ({
-        ...commit(state, changeMountingType(state.history.present, mountingType)),
-        activeFace: 'front',
-      }),
+      changeMountingType: (state, { mountingType }: { mountingType: MountingType }, enqueue) => {
+        enqueue.emit.fitCamera({})
+        const plan = changeMountingType(state.history.present, mountingType)
+        return {
+          ...commit(state, plan),
+          activeFace: allowedFaces(plan).includes(state.activeFace) ? state.activeFace : 'front',
+        }
+      },
 
-      updateItem: (state, { item }: { item: PlanItem }) => moveItem(state, item),
+      /** Stands the system along another wall, centred on it. */
+      moveToWall: (state, { wall }: { wall: Wall }, enqueue) => {
+        const plan = state.history.present
+        if (wall === plan.system.placement.wall) return state
+        enqueue.emit.fitCamera({})
+        return commit(state, fitPlacement(placeOnWall(plan, wall), catalog))
+      },
+
+      updateItem: (state, { item }: { item: PlanItem }, enqueue) => {
+        const next = moveItem(state, item)
+        if (next.activeFace !== state.activeFace) enqueue.emit.turnCamera({})
+        return next
+      },
 
       dropItem: (
         state,
-        drop: { id: string; bayIndex: number; height: number; face: Face; duplicate: boolean },
+        drop: {
+          id: string
+          variantId: string
+          bayIndex: number
+          height: number
+          face: Face
+          duplicate: boolean
+        },
+        enqueue,
       ) => {
         const item = state.history.present.system.items.find((entry) => entry.id === drop.id)
         if (!item) return state
 
-        const candidate = { ...item, bayIndex: drop.bayIndex, height: drop.height, face: drop.face }
-        return drop.duplicate ? duplicateItem(state, candidate) : moveItem(state, candidate)
+        const candidate = {
+          ...item,
+          variantId: drop.variantId,
+          bayIndex: drop.bayIndex,
+          height: drop.height,
+          face: drop.face,
+        }
+        const next = drop.duplicate ? duplicateItem(state, candidate) : moveItem(state, candidate)
+        if (next.activeFace !== state.activeFace) enqueue.emit.turnCamera({})
+        return next
+      },
+
+      nudgeSelected: (state, { bays, pitches }: { bays: number; pitches: number }) => {
+        const item = selectedItem(state)
+        if (!item) return state
+
+        const plan = state.history.present
+        const bayIndex = Math.min(plan.system.bays.length - 1, Math.max(0, item.bayIndex + bays))
+        if (bayIndex === item.bayIndex && pitches === 0) return state
+        return moveItem(
+          state,
+          sizedForBay(
+            { ...item, bayIndex, height: item.height + pitches * 70 },
+            plan.system.bays,
+            catalog,
+          ),
+        )
       },
 
       duplicateSelected: (state) => {
@@ -222,14 +314,14 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
         })
         if (!result.ok) return notify(state, result.message)
 
-        return {
-          ...commit(state, {
-            ...plan,
-            system: { ...plan.system, items: [...plan.system.items, result.item] },
-          }),
-          selection: { type: 'item', id: result.item.id },
-          overlay: null,
-        }
+        const next = commit(state, {
+          ...plan,
+          system: { ...plan.system, items: [...plan.system.items, result.item] },
+        })
+        // Accessories keep their host selected, so several can be added in turn
+        return result.item.parentItemId
+          ? next
+          : { ...next, selection: { type: 'item', id: result.item.id } }
       },
 
       moveSupports: (state, { move }: { move: SupportRunMove }) => {
@@ -239,34 +331,34 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
           : notify(state, 'The connected support run does not fit in that position.')
       },
 
-      selectItem: (state, { id }: { id: string }) => {
-        const item = state.history.present.system.items.find((entry) => entry.id === id)
-        return {
-          ...state,
-          selection: { type: 'item', id },
-          activeFace: item?.face ?? state.activeFace,
-        }
-      },
+      selectItem: (state, { id }: { id: string }) => ({
+        ...withTab(state, 'details'),
+        selection: { type: 'item', id },
+        placing: null,
+      }),
 
       selectSupport: (state, { index }: { index: number }) => ({
-        ...state,
+        ...withTab(state, 'details'),
         selection: { type: 'support', index },
-        overlay: state.overlay === 'configuration' ? null : state.overlay,
       }),
 
       clearSelection: (state) => ({ ...state, selection: null }),
 
-      selectFace: (state, { face }: { face: Face }, enqueue) => {
-        enqueue.emit.fitCamera({})
-        const item = selectedItem(state)
-        return {
-          ...state,
-          activeFace: face,
-          view: state.view === 'orbit' ? 'orbit' : face,
-          selection:
-            state.selection?.type === 'item' && item?.face !== face ? null : state.selection,
-        }
+      /** Zooms the camera to a component, as a double-click on it does. */
+      zoomTo: (state, { itemId }: { itemId: string }, enqueue) => {
+        enqueue.emit.zoomTo({ itemId })
+        return state
       },
+
+      selectFace: (state, { face }: { face: Face }, enqueue) => {
+        if (face === state.activeFace) return state
+        enqueue.emit.turnCamera({})
+        return { ...state, activeFace: face }
+      },
+
+      /** The camera has moved round to the other face. */
+      faceInView: (state, { face }: { face: Face }) =>
+        face === state.activeFace ? state : { ...state, activeFace: face },
 
       setView: (state, { view }: { view: View }, enqueue) => {
         if (view !== state.view) enqueue.emit.fitCamera({})
@@ -280,25 +372,31 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
 
       toggleDimensions: (state) => ({ ...state, showDimensions: !state.showDimensions }),
 
-      toggleRendering: (state) => ({
-        ...state,
-        rendering: !state.rendering,
-        renderStatus: null,
-      }),
-
-      renderStatusChanged: (state, { status }: { status: RenderStatus | null }) => ({
-        ...state,
-        renderStatus: status,
-      }),
-
       dragChanged: (state, { drag }: { drag: DragStatus | null }) => ({ ...state, drag }),
 
-      open: (state, { overlay }: { overlay: Overlay }) => ({ ...state, overlay }),
-
-      setConfigurationTab: (state, { tab }: { tab: 'system' | 'room' }) => ({
-        ...state,
-        configurationTab: tab,
+      showTab: (state, { tab }: { tab: Tab }) => ({
+        ...withTab(state, tab),
+        placing: tab === 'components' ? state.placing : null,
       }),
+
+      startPlacing: (state, { placing }: { placing: Placing }) => ({
+        ...withTab(state, 'components'),
+        placing,
+        selection: null,
+      }),
+
+      stopPlacing: (state) => ({ ...state, placing: null }),
+
+      /** Adds a placed component and keeps placing, so several can go in one after another. */
+      placeItem: (state, { item }: { item: Omit<PlanItem, 'id'> }) => {
+        const plan = state.history.present
+        const candidate = { ...item, id: makeId('item') }
+        if (!canPlaceItem(plan, catalog, candidate)) return notify(state, 'It does not fit here.')
+        return commit(state, {
+          ...plan,
+          system: { ...plan.system, items: [...plan.system.items, candidate] },
+        })
+      },
 
       notify: (state, { notice }: { notice: string | null }) => ({ ...state, notice }),
 
@@ -309,7 +407,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
           enqueue.emit.cancelDrag({})
           return { ...state, drag: null }
         }
-        if (state.rendering) return { ...state, rendering: false }
+        if (state.placing) return { ...state, placing: null }
         return editing ? state : { ...state, selection: null }
       },
     },

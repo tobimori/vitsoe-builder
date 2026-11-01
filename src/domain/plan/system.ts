@@ -17,11 +17,6 @@ export function allowedFaces(plan: Plan): Face[] {
   return isTwoSided(plan.system.mountingType) ? ['front', 'back'] : ['front']
 }
 
-/** Rotated by 90° or 270°, the run follows the left wall instead of the back wall. */
-export function runsAlongZ(placement: Placement) {
-  return placement.rotation === 90 || placement.rotation === 270
-}
-
 export function totalCentreWidth(plan: Plan) {
   return plan.system.bays.reduce((sum, bay) => sum + bay.centreWidth, 0)
 }
@@ -39,13 +34,16 @@ function withSystem(plan: Plan, patch: Partial<PlanSystem>): Plan {
   return { ...plan, system: { ...plan.system, ...patch } }
 }
 
-/** The wall standoff of a semi-wall system is the reach of its brackets. */
-function bracketReach(options: StructureOptions) {
-  return (options.wallBracket === 'long' ? 110 : 70) + (options.extensionBolts ? 65 : 0)
+/**
+ * A semi-wall system stands off the wall by its wall ties: the post clamp, the bracket at
+ * full reach, and any extension bolt. The brackets shorten by up to 10 mm.
+ */
+export function wallTieDistance(options: StructureOptions) {
+  return 23 + (options.wallBracket === 'long' ? 110 : 70) + (options.extensionBolts ? 65 : 0)
 }
 
 function withWallDistance(placement: Placement, distance: Millimetres): Placement {
-  return runsAlongZ(placement) ? { ...placement, x: distance } : { ...placement, z: distance }
+  return { ...placement, distance }
 }
 
 export function changeMountingType(plan: Plan, mountingType: MountingType): Plan {
@@ -56,8 +54,8 @@ export function changeMountingType(plan: Plan, mountingType: MountingType): Plan
     mountingType === 'wall'
       ? withWallDistance(system.placement, 0)
       : mountingType === 'semi-wall'
-        ? withWallDistance(system.placement, 70)
-        : { ...system.placement, z: Math.max(600, system.placement.z) }
+        ? withWallDistance(system.placement, wallTieDistance(system.structureOptions))
+        : withWallDistance(system.placement, Math.max(600, system.placement.distance))
 
   return withSystem(plan, {
     mountingType,
@@ -73,7 +71,7 @@ export function setStructureOptions(plan: Plan, patch: Partial<StructureOptions>
   const structureOptions = { ...plan.system.structureOptions, ...patch }
   const placement =
     plan.system.mountingType === 'semi-wall'
-      ? withWallDistance(plan.system.placement, bracketReach(structureOptions))
+      ? withWallDistance(plan.system.placement, wallTieDistance(structureOptions))
       : plan.system.placement
 
   return withSystem(plan, { structureOptions, placement })

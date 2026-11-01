@@ -1,4 +1,4 @@
-import { useThree } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { studioLighting } from '../studio/lighting'
@@ -33,41 +33,67 @@ function fitShadow(light: THREE.DirectionalLight, assembly: THREE.Group) {
   camera.updateProjectionMatrix()
 }
 
+const up = new THREE.Vector3(0, 1, 0)
+
+/**
+ * The window light comes from the front left of the face in view, high and frontal enough
+ * that shelves cast short shadows behind them, as in Vitsœ's studio photographs.
+ */
+const keyOffset = new THREE.Vector3(-2, 5, 5)
+const fillOffset = new THREE.Vector3(4, 3, 1.5)
+
 export function StudioLights({
   assembly,
   x,
   z,
   rotation,
+  moving,
 }: {
   assembly: THREE.Group
   /** Centre of the run in metres. */
   x: number
   z: number
+  /** The angle the face in view looks towards. */
   rotation: number
+  /** Whether something that casts a shadow moves on its own, like a dragged component. */
+  moving: boolean
 }) {
+  const get = useThree((state) => state.get)
   const invalidate = useThree((state) => state.invalidate)
   const keyLight = useRef<THREE.DirectionalLight>(null)
   const [target] = useState(() => new THREE.Object3D())
+  const centre = new THREE.Vector3(x, 0, z)
+  const key = keyOffset.clone().applyAxisAngle(up, rotation).add(centre)
+  const fill = fillOffset.clone().applyAxisAngle(up, rotation).add(centre)
 
+  // The shadow map is drawn again only when the furniture or the light moves, not the camera
   useEffect(() => {
+    const { shadowMap } = get().gl
+    shadowMap.autoUpdate = false
+    shadowMap.needsUpdate = true
     target.position.set(x, 1, z)
     if (keyLight.current) fitShadow(keyLight.current, assembly)
     invalidate()
-  }, [assembly, target, x, z, rotation, invalidate])
+  }, [assembly, target, x, z, rotation, moving, get, invalidate])
+
+  useFrame(({ gl }) => {
+    if (moving) gl.shadowMap.needsUpdate = true
+  })
 
   return (
     <>
       <ambientLight intensity={studioLighting.ambient} />
-      <hemisphereLight args={['#fffdf8', '#89867d', studioLighting.hemisphere]} />
+      <hemisphereLight args={['#ffffff', '#a8a8a4', studioLighting.hemisphere]} />
       <primitive object={target} />
       <directionalLight
         ref={keyLight}
         name="Studio window key"
-        position={[x - 3, 5.5, z + 4]}
+        position={key}
         target={target}
-        color="#fffdf8"
+        color="#fffdfa"
         intensity={studioLighting.key}
         castShadow
+        shadow-intensity={studioLighting.shadow}
         shadow-mapSize={[2048, 2048]}
         shadow-bias={-0.0002}
         shadow-normalBias={0.001}
@@ -77,13 +103,9 @@ export function StudioLights({
         shadow-camera-bottom={-4}
         shadow-camera-near={0.1}
         shadow-camera-far={20}
-        shadow-radius={1.5}
+        shadow-radius={5}
       />
-      <directionalLight
-        position={[x + 4, 3, z - 2]}
-        target={target}
-        intensity={studioLighting.fill}
-      />
+      <directionalLight position={fill} target={target} intensity={studioLighting.fill} />
     </>
   )
 }

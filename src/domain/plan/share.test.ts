@@ -14,7 +14,7 @@ describe('share links', () => {
     plan.system.mountingType = 'floor-to-ceiling'
     plan.system.mountHeight = 205
     plan.system.finish = { colour: 'black', wood: 'beech' }
-    plan.system.placement = { x: 880, z: 1240, rotation: 90 }
+    plan.system.placement = { wall: 'left', offset: 880, distance: 1240 }
     plan.system.items = [
       ...plan.system.items,
       {

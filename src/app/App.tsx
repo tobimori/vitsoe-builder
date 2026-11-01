@@ -1,56 +1,60 @@
 import * as stylex from '@stylexjs/stylex'
-import { CatalogDrawer } from '../features/catalog/CatalogDrawer'
-import { ConfigurationPanel } from '../features/configuration/ConfigurationPanel'
-import { Header } from '../features/header/Header'
-import { MobileConfiguration } from '../features/mobile/MobileConfiguration'
-import { MobileNav } from '../features/mobile/MobileNav'
-import { Notice } from '../features/notice/Notice'
-import { PartsPanel } from '../features/parts/PartsPanel'
+import {
+  LeftPanel,
+  PhoneHeader,
+  PhonePanel,
+  PhoneTotal,
+  RightPanel,
+} from '../features/panel/Panels'
 import { Stage } from '../features/stage/Stage'
 import { colors, media } from '../ui/tokens.stylex'
+import { useSinglePanel } from '../ui/useSinglePanel'
 
 const styles = stylex.create({
   shell: {
     display: 'grid',
-    gridTemplate: {
-      default: '88px minmax(0, 1fr) / 360px minmax(0, 1fr)',
-      [media.compact]: '88px minmax(0, 1fr) / 286px minmax(0, 1fr)',
-      [media.mobile]: '58px minmax(0, 1fr) 58px / 1fr',
+    gridTemplateAreas: {
+      default: '"left stage right"',
+      [media.single]: '"header header" "stage panel"',
+      [media.stacked]: '"header" "stage" "panel"',
+    },
+    gridTemplateColumns: {
+      default: '300px minmax(0, 1fr) 320px',
+      [media.compact]: '264px minmax(0, 1fr) 288px',
+      [media.single]: 'minmax(0, 1fr) 340px',
+      [media.stacked]: 'minmax(0, 1fr)',
+    },
+    gridTemplateRows: {
+      default: 'minmax(0, 1fr)',
+      [media.single]: '56px minmax(0, 1fr)',
+      [media.stacked]: '56px minmax(240px, 44%) minmax(0, 1fr)',
     },
     width: '100%',
     height: '100%',
-    paddingBottom: {
-      default: 0,
-      [media.mobile]: 'env(safe-area-inset-bottom)',
-    },
-    backgroundColor: colors.canvas,
-  },
-  configuration: {
-    display: {
-      default: 'block',
-      [media.mobile]: 'none',
-    },
-    minHeight: 0,
-    borderRightWidth: 1,
-    borderRightStyle: 'solid',
-    borderRightColor: colors.line,
-    backgroundColor: colors.panel,
+    // The page reaches under the notch and home indicator; the controls stay clear of them
+    paddingTop: 'env(safe-area-inset-top)',
+    paddingRight: 'env(safe-area-inset-right)',
+    paddingBottom: 'env(safe-area-inset-bottom)',
+    paddingLeft: 'env(safe-area-inset-left)',
+    backgroundColor: colors.surface,
   },
 })
 
 export function App() {
+  const single = useSinglePanel()
+
   return (
-    <main {...stylex.props(styles.shell)}>
-      <Header />
-      <aside aria-label="Configuration" {...stylex.props(styles.configuration)}>
-        <ConfigurationPanel />
-      </aside>
+    <div {...stylex.props(styles.shell)}>
+      {single ? <PhoneHeader /> : <LeftPanel />}
       <Stage />
-      <MobileNav />
-      <MobileConfiguration />
-      <CatalogDrawer />
-      <PartsPanel />
-      <Notice />
-    </main>
+      {single ? (
+        <>
+          <PhoneTotal />
+          <PhonePanel />
+        </>
+      ) : (
+        <RightPanel />
+      )}
+    </div>
   )
 }

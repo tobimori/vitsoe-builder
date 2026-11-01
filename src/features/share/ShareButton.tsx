@@ -1,31 +1,20 @@
 import * as stylex from '@stylexjs/stylex'
-import { useRef, useState, type ReactNode } from 'react'
-import { Button } from 'react-aria-components'
+import { useRef, useState } from 'react'
 import { buildPlanUrl } from '../../domain/plan/share'
 import { editor, selectors } from '../../editor/editor'
-import { CardDialog, cardText } from '../../ui/overlays'
+import { ActionButton } from '../../ui/buttons'
+import { CardDialog } from '../../ui/overlays'
 import { text } from '../../ui/text'
 import { colors } from '../../ui/tokens.stylex'
 
 const styles = stylex.create({
   input: {
     width: '100%',
-    height: 45,
-    padding: '0 12px',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: colors.line,
-    backgroundColor: '#f4f4f2',
-    color: '#222',
-  },
-  select: {
-    width: '100%',
-    minHeight: 47,
-    marginTop: 12,
+    height: 32,
+    margin: '16px 0 12px',
+    padding: '0 10px',
     borderWidth: 0,
-    backgroundColor: colors.blue,
-    color: '#fff',
-    fontSize: 14,
+    backgroundColor: colors.band,
   },
 })
 
@@ -50,13 +39,7 @@ async function copyText(value: string) {
   }
 }
 
-export function ShareButton({
-  style,
-  children,
-}: {
-  style?: stylex.StyleXStyles
-  children: ReactNode
-}) {
+export function ShareButton({ style }: { style?: stylex.StyleXStyles }) {
   const [fallbackUrl, setFallbackUrl] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
 
@@ -68,33 +51,26 @@ export function ShareButton({
       editor.trigger.notify({ notice: 'This plan is too large to share as a link.' })
       return
     }
-    if (await copyText(url)) editor.trigger.notify({ notice: 'Share link copied.' })
+    if (await copyText(url))
+      editor.trigger.notify({ notice: 'Link copied. Anyone with it sees this plan.' })
     else setFallbackUrl(url)
-  }
-
-  const selectLink = () => {
-    input.current?.focus()
-    input.current?.select()
   }
 
   return (
     <>
-      <Button onPress={share} {...stylex.props(style)}>
-        {children}
-      </Button>
+      <ActionButton variant="primary" style={style} onPress={share}>
+        Share
+      </ActionButton>
       <CardDialog
         labelledBy="share-title"
-        closeLabel="Close share link"
+        closeLabel="Close"
         isOpen={fallbackUrl !== null}
         onClose={() => setFallbackUrl(null)}
       >
-        <p {...stylex.props(text.eyebrow)}>Share this plan</p>
-        <h2 id="share-title" {...stylex.props(cardText.title)}>
-          Copy this link
+        <h2 id="share-title" {...stylex.props(text.title)}>
+          Share this plan
         </h2>
-        <p {...stylex.props(cardText.copy)}>
-          Your browser blocked automatic copying. Select the link and copy it.
-        </p>
+        <p {...stylex.props(text.hint)}>Your browser blocked copying. Copy the link yourself.</p>
         <input
           ref={input}
           aria-label="Share link"
@@ -104,9 +80,15 @@ export function ShareButton({
           onFocus={(event) => event.currentTarget.select()}
           {...stylex.props(styles.input)}
         />
-        <Button onPress={selectLink} {...stylex.props(styles.select)}>
+        <ActionButton
+          variant="primary"
+          onPress={() => {
+            input.current?.focus()
+            input.current?.select()
+          }}
+        >
           Select link
-        </Button>
+        </ActionButton>
       </CardDialog>
     </>
   )

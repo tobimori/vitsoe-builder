@@ -1,177 +1,159 @@
 import * as stylex from '@stylexjs/stylex'
-import { useAtom } from '@xstate/store-react'
-import { Button } from 'react-aria-components'
-import { allowedFaces } from '../../domain/plan/system'
-import { editor, selectors, useEditor, usePlan, useSelectedItem } from '../../editor/editor'
+import { useEffect } from 'react'
+import { catalog } from '../../domain/catalog/catalog'
+import { isTwoSided } from '../../domain/plan/system'
+import { editor, useEditor, usePlan } from '../../editor/editor'
 import { BuilderScene } from '../../scene/BuilderScene'
-import { text } from '../../ui/text'
+import { ActionButton } from '../../ui/buttons'
 import { colors, media } from '../../ui/tokens.stylex'
-import { ItemInspector } from '../inspector/ItemInspector'
-import { SupportInspector } from '../inspector/SupportInspector'
-import { FacePicker } from './FacePicker'
-import { RenderProgress } from './RenderProgress'
-import { ViewTools } from './ViewTools'
+import { touchScreen } from '../../ui/touch'
+import { StageControls } from './StageControls'
+
+const appear = stylex.keyframes({
+  from: { opacity: 0, transform: 'translate(-50%, -6px)' },
+})
 
 const styles = stylex.create({
   stage: {
+    gridArea: 'stage',
     position: 'relative',
-    gridRow: {
-      default: 'auto',
-      [media.mobile]: 2,
-    },
-    zIndex: 0,
     isolation: 'isolate',
     minWidth: 0,
     minHeight: 0,
     overflow: 'hidden',
-    backgroundColor: colors.canvas,
+    backgroundColor: colors.stage,
   },
-  title: {
+  drawing: {
+    backgroundColor: colors.surface,
+  },
+  message: {
     position: 'absolute',
-    zIndex: 4,
+    zIndex: 7,
     top: {
-      default: 27,
-      [media.mobile]: 18,
+      default: 16,
+      [media.stacked]: 10,
     },
-    left: {
-      default: 32,
-      [media.mobile]: 17,
-    },
-    pointerEvents: 'none',
-  },
-  heading: {
-    margin: 0,
-    fontSize: {
-      default: 36,
-      [media.mobile]: 24,
-    },
-    fontWeight: 400,
-    letterSpacing: '-0.035em',
-  },
-  help: {
-    position: 'absolute',
-    right: 24,
-    bottom: 78,
-    display: {
-      default: 'block',
-      [media.narrowTablet]: 'none',
-      [media.mobile]: 'none',
-    },
-    maxWidth: 430,
-    margin: 0,
-    color: colors.muted,
-    fontSize: 11,
-    lineHeight: 1.35,
-    textAlign: 'right',
-  },
-  add: {
-    position: 'absolute',
-    zIndex: 5,
-    left: 32,
-    bottom: {
-      default: 24,
-      [media.narrowTablet]: 84,
-    },
-    display: {
-      default: 'block',
-      [media.mobile]: 'none',
-    },
-    height: 46,
-    padding: '0 22px',
-    borderWidth: 0,
-    backgroundColor: colors.blue,
+    left: '50%',
+    maxWidth: 'calc(100% - 24px)',
+    padding: '10px 14px',
+    backgroundColor: colors.ink,
     color: '#fff',
+    fontSize: 14,
+    lineHeight: '20px',
+    transform: 'translateX(-50%)',
+    animationName: appear,
+    animationDuration: '0.2s',
   },
-  plus: {
-    marginRight: 8,
-  },
-  issues: {
-    position: 'absolute',
-    zIndex: 5,
-    left: 32,
-    bottom: {
-      default: 82,
-      [media.narrowTablet]: 144,
-    },
-    display: {
-      default: 'block',
-      [media.mobile]: 'none',
-    },
-    padding: '7px 11px',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderColor: '#d8a49a',
-    backgroundColor: colors.panel,
-    color: '#912412',
-    fontSize: 11,
-  },
-  issueMark: {
-    display: 'inline-grid',
-    placeItems: 'center',
-    width: 16,
-    height: 16,
-    marginRight: 5,
-    borderRadius: '50%',
+  invalid: {
     backgroundColor: colors.red,
+  },
+  bar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    padding: '4px 4px 4px 12px',
+    whiteSpace: 'nowrap',
+  },
+  done: {
+    height: 28,
+    padding: '0 10px',
+    backgroundColor: {
+      default: '#ffffff26',
+      ':hover': '#ffffff40',
+    },
     color: '#fff',
+  },
+  empty: {
+    position: 'absolute',
+    zIndex: 5,
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
   },
 })
 
-export function Stage() {
-  const plan = usePlan()
-  const issues = useAtom(selectors.issues)
-  const rendering = useEditor((context) => context.rendering)
+function Notice() {
+  const notice = useEditor((context) => context.notice)
+
+  useEffect(() => {
+    if (!notice) return
+    const timer = window.setTimeout(() => editor.trigger.notify({ notice: null }), 3000)
+    return () => window.clearTimeout(timer)
+  }, [notice])
+
+  return notice && <div {...stylex.props(styles.message)}>{notice}</div>
+}
+
+/** What dropping the component would do, so the result is clear before letting go. */
+function DragStatus() {
+  const drag = useEditor((context) => context.drag)
   const activeFace = useEditor((context) => context.activeFace)
-  const selection = useEditor((context) => context.selection)
-  const selectedItem = useSelectedItem()
-  const errors = issues.filter((issue) => issue.severity === 'error').length
-  const twoSided = allowedFaces(plan).includes('back')
+  const twoSided = isTwoSided(usePlan().system.mountingType)
+  if (!drag) return null
+
+  const action = drag.duplicate ? 'copy' : 'move'
+  const otherFace = activeFace === 'front' ? 'Back' : 'Front'
+  const tips = [
+    !touchScreen && 'Hold Alt to copy.',
+    twoSided && `Drag onto ${otherFace} for the other side.`,
+  ]
+  const message = !drag.valid
+    ? 'It does not fit here'
+    : drag.face !== activeFace
+      ? `Release to ${action} it to the ${drag.face}, or hold to turn round`
+      : drag.duplicate
+        ? 'Release to copy'
+        : tips.filter(Boolean).join(' ')
+  if (!message) return null
+
+  return <div {...stylex.props(styles.message, !drag.valid && styles.invalid)}>{message}</div>
+}
+
+/** What a click in the view does while a component is being placed, and a way to stop. */
+function PlacingStatus() {
+  const placing = useEditor((context) => context.placing)
+  const notice = useEditor((context) => context.notice)
+  const product = placing && catalog.product(placing.productId)
+  if (!product || notice) return null
+
+  const name = product.name.toLowerCase()
+  if (placing.fromCatalogue)
+    return <div {...stylex.props(styles.message)}>Drop the {name} into a bay</div>
 
   return (
-    <section aria-label="Room view" {...stylex.props(styles.stage)}>
-      {!rendering && (
-        <div {...stylex.props(styles.title)}>
-          <p {...stylex.props(text.eyebrow)}>606 Universal Shelving System</p>
-          <h1 {...stylex.props(styles.heading)}>Plan your system</h1>
+    <div {...stylex.props(styles.message, styles.bar)}>
+      <span>Choose a bay for the {name}</span>
+      <ActionButton style={styles.done} onPress={() => editor.trigger.stopPlacing()}>
+        Done
+      </ActionButton>
+    </div>
+  )
+}
+
+export function Stage() {
+  const drawing = useEditor((context) => context.view === 'drawing')
+  const placing = useEditor((context) => context.placing !== null)
+  const empty = usePlan().system.items.length === 0
+
+  return (
+    <section aria-label="Room view" {...stylex.props(styles.stage, drawing && styles.drawing)}>
+      <BuilderScene />
+      <StageControls />
+      {empty && !placing && (
+        <div {...stylex.props(styles.empty)}>
+          <ActionButton
+            variant="primary"
+            onPress={() => editor.trigger.showTab({ tab: 'components' })}
+          >
+            Add components
+          </ActionButton>
         </div>
       )}
-      <BuilderScene />
-      <ViewTools />
-      {rendering ? (
-        <RenderProgress />
-      ) : (
-        <>
-          <p {...stylex.props(styles.help)}>
-            Drag empty space to orbit · Right-drag to pan · Scroll to zoom · Double-click a
-            component to focus · Option-drag to copy
-          </p>
-          <Button
-            onPress={() => editor.trigger.open({ overlay: 'catalog' })}
-            {...stylex.props(styles.add)}
-          >
-            <span aria-hidden="true" {...stylex.props(styles.plus)}>
-              ＋
-            </span>
-            Add to {activeFace}
-          </Button>
-          {errors > 0 && (
-            <Button
-              onPress={() => editor.trigger.open({ overlay: 'parts' })}
-              {...stylex.props(styles.issues)}
-            >
-              <span aria-hidden="true" {...stylex.props(styles.issueMark)}>
-                !
-              </span>
-              {errors} issue{errors === 1 ? '' : 's'}
-            </Button>
-          )}
-          {selectedItem && <ItemInspector item={selectedItem} belowFacePicker={twoSided} />}
-          {selection?.type === 'support' && (
-            <SupportInspector supportIndex={selection.index} belowFacePicker={twoSided} />
-          )}
-        </>
-      )}
-      {twoSided && <FacePicker />}
+      <DragStatus />
+      <PlacingStatus />
+      <div role="status" aria-live="polite">
+        <Notice />
+      </div>
     </section>
   )
 }

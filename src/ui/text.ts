@@ -1,37 +1,57 @@
 import * as stylex from '@stylexjs/stylex'
-import { colors } from './tokens.stylex'
+import { colors, weights } from './tokens.stylex'
 
 export const text = stylex.create({
-  eyebrow: {
-    margin: '0 0 5px',
-    color: '#676662',
-    fontSize: 10,
-    lineHeight: 1.2,
-    textTransform: 'uppercase',
-    letterSpacing: '0.08em',
+  display: {
+    margin: 0,
+    fontSize: 22,
+    lineHeight: '28px',
+    fontWeight: weights.bold,
+    letterSpacing: '-0.01em',
+  },
+  /** The light second line under a bold title, as on Vitsœ's pages. */
+  subtitle: {
+    margin: 0,
+    fontSize: 22,
+    lineHeight: '28px',
+    fontWeight: weights.light,
+    letterSpacing: '-0.01em',
+  },
+  title: {
+    margin: 0,
+    fontSize: 17,
+    lineHeight: '24px',
+    fontWeight: weights.bold,
   },
   heading: {
     margin: 0,
-    fontSize: 21,
-    fontWeight: 500,
-    letterSpacing: '-0.015em',
+    fontSize: 15,
+    lineHeight: '20px',
+    fontWeight: weights.bold,
   },
-  display: {
+  body: {
     margin: 0,
-    fontSize: 32,
-    fontWeight: 400,
-    letterSpacing: '-0.015em',
+    fontSize: 14,
+    lineHeight: '21px',
   },
   hint: {
-    margin: '8px 0 0',
+    margin: '12px 0 0',
     color: colors.muted,
-    fontSize: 14,
-    lineHeight: 1.45,
+    fontSize: 13,
+    lineHeight: '19px',
+  },
+  small: {
+    color: colors.muted,
+    fontSize: 13,
+    lineHeight: '18px',
   },
   error: {
-    margin: '10px 0 0',
+    margin: '12px 0 0',
     color: colors.red,
-    fontSize: 12,
-    lineHeight: 1.4,
+    fontSize: 13,
+    lineHeight: '19px',
+  },
+  numeric: {
+    fontVariantNumeric: 'tabular-nums',
   },
 })

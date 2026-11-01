@@ -9,9 +9,13 @@ const copy = (): Plan => structuredClone(initialPlan)
 
 it('moves a connected wall run and its fitted items by one committed elevation delta', () => {
   const plan = copy()
-  const { x, z } = plan.system.placement
+  const { offset, distance } = plan.system.placement
   const before = deriveSupportTrackPlans(plan, catalog)
-  const moved = moveSupportRun(plan, { x, z, mountHeight: plan.system.mountHeight + 140 })
+  const moved = moveSupportRun(plan, {
+    offset,
+    distance,
+    mountHeight: plan.system.mountHeight + 140,
+  })
   const after = deriveSupportTrackPlans(moved, catalog)
 
   expect(moved.system.items.map((item) => item.height)).toEqual(
@@ -35,9 +39,9 @@ it('keeps wall-run elevation fixed when an integrated table reaches the floor', 
       finish: 'system',
     },
   ]
-  const { x, z } = plan.system.placement
+  const { offset, distance } = plan.system.placement
 
-  expect(moveSupportRun(plan, { x, z, mountHeight: 625 }).system.mountHeight).toBe(
+  expect(moveSupportRun(plan, { offset, distance, mountHeight: 625 }).system.mountHeight).toBe(
     plan.system.mountHeight,
   )
 })

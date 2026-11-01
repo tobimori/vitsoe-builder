@@ -2,14 +2,14 @@ import * as THREE from 'three'
 
 let source: THREE.DataTexture | undefined
 
-/** One linear HDR source for window reflections and both rendering modes. */
+/** One linear HDR source for window reflections in the scene and the component stills. */
 export function studioEnvironmentTexture() {
   if (source) return source
 
   const width = 512
   const height = 256
   const pixels = new Float32Array(width * height * 4)
-  const windowDirection = new THREE.Vector3(-3, 4.5, 4).normalize()
+  const windowDirection = new THREE.Vector3(-2.5, 6, 3.5).normalize()
   const right = new THREE.Vector3()
     .crossVectors(new THREE.Vector3(0, 1, 0), windowDirection)
     .normalize()
@@ -29,14 +29,14 @@ export function studioEnvironmentTexture() {
       const facing = direction.dot(windowDirection)
       const u = direction.dot(right) / Math.max(facing, 0.001)
       const v = direction.dot(up) / Math.max(facing, 0.001)
-      const edge = Math.max(Math.abs(u) / 0.32, Math.abs(v) / 0.45)
-      const window = facing > 0 ? 1 - THREE.MathUtils.smoothstep(edge, 0.9, 1) : 0
-      const room = 0.4 + 0.55 * THREE.MathUtils.smoothstep(direction.y, -0.5, 0.9)
-      const value = room + window * 5
+      const edge = Math.max(Math.abs(u) / 0.55, Math.abs(v) / 0.7)
+      const window = facing > 0 ? 1 - THREE.MathUtils.smoothstep(edge, 0.6, 1) : 0
+      const room = 0.55 + 0.45 * THREE.MathUtils.smoothstep(direction.y, -0.6, 0.9)
+      const value = room + window * 2.4
       const index = (y * width + x) * 4
       pixels[index] = value
-      pixels[index + 1] = value * 0.99
-      pixels[index + 2] = value * 0.96
+      pixels[index + 1] = value * 0.995
+      pixels[index + 2] = value * 0.985
       pixels[index + 3] = 1
     }
   }

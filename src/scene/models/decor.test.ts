@@ -15,7 +15,7 @@ function configuration(item: PlanItem): Plan {
       mountingType: 'freestanding',
       bays: [{ id: 'bay', centreWidth: 912 }],
       items: [item],
-      placement: { x: 700, z: 1200, rotation: 90 },
+      placement: { wall: 'left', offset: 700, distance: 1200 },
     },
   }
 }

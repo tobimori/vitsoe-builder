@@ -1,13 +1,14 @@
 import * as stylex from '@stylexjs/stylex'
 import { useEffect, useState } from 'react'
-import { Button } from 'react-aria-components'
 import { catalog } from '../../domain/catalog/catalog'
 import { isWallMounted } from '../../domain/plan/system'
 import { editor, selectors, usePlan } from '../../editor/editor'
 import { exportPlanUsdz } from '../../scene/export/usdz'
-import { CardDialog, cardText } from '../../ui/overlays'
+import { ActionButton } from '../../ui/buttons'
+import { Icon } from '../../ui/icons'
+import { CardDialog } from '../../ui/overlays'
 import { text } from '../../ui/text'
-import { colors } from '../../ui/tokens.stylex'
+import { colors, media, weights } from '../../ui/tokens.stylex'
 
 const styles = stylex.create({
   launch: {
@@ -15,10 +16,22 @@ const styles = stylex.create({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 47,
-    backgroundColor: colors.blue,
+    height: 36,
+    marginTop: 20,
+    backgroundColor: {
+      default: colors.blue,
+      ':hover': colors.blueDark,
+    },
     color: '#fff',
+    fontWeight: weights.bold,
     textDecoration: 'none',
+  },
+  compact: {
+    width: {
+      default: 36,
+      [media.touch]: 44,
+    },
+    padding: 0,
   },
   // Quick Look only opens links that contain an image: https://webkit.org/blog/8421/viewing-augmented-reality-assets-in-safari-for-ios/
   quickLookImage: {
@@ -33,7 +46,14 @@ const iOS =
   /iPhone|iPad|iPod/.test(navigator.userAgent) ||
   (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
-export function ArButton({ style }: { style?: stylex.StyleXStyles }) {
+export function ArButton({
+  compact = false,
+  style,
+}: {
+  /** Only the icon, for the narrow phone header. */
+  compact?: boolean
+  style?: stylex.StyleXStyles
+}) {
   const plan = usePlan()
   const [preparing, setPreparing] = useState(false)
   const [url, setUrl] = useState<string | null>(null)
@@ -59,25 +79,31 @@ export function ArButton({ style }: { style?: stylex.StyleXStyles }) {
 
   return (
     <>
-      <Button isDisabled={preparing} onPress={prepare} {...stylex.props(style)}>
-        {preparing ? 'Preparing…' : 'View in AR'}
-      </Button>
+      <ActionButton
+        variant="secondary"
+        aria-label={compact ? 'View in AR' : undefined}
+        isDisabled={preparing}
+        style={[compact && styles.compact, style]}
+        onPress={prepare}
+      >
+        <Icon name="ar" />
+        {!compact && (preparing ? 'Preparing…' : 'View in AR')}
+      </ActionButton>
       <CardDialog
         labelledBy="ar-title"
-        closeLabel="Close AR preview"
+        closeLabel="Close"
         isOpen={url !== null}
         onClose={() => setUrl(null)}
       >
-        <p {...stylex.props(text.eyebrow)}>Augmented reality</p>
-        <h2 id="ar-title" {...stylex.props(cardText.title)}>
-          Your room, your system
+        <h2 id="ar-title" {...stylex.props(text.title)}>
+          View in your room
         </h2>
-        <p {...stylex.props(cardText.copy)}>
+        <p {...stylex.props(text.hint)}>
           {!iOS
-            ? 'Open this planner on an iPhone or iPad to place the system in your room. You can download the AR model here.'
+            ? 'Open this planner on an iPhone or iPad to place the system in your room, or download the model.'
             : isWallMounted(plan.system.mountingType)
-              ? 'Point your device at a clear wall, place the system, then adjust its mounting height.'
-              : 'Scan a clear area of floor, then place the system at full scale.'}
+              ? 'Point your device at a clear wall, place the system, then adjust its height.'
+              : 'Scan a clear area of floor, then place the system at full size.'}
         </p>
         {url && (
           <a
@@ -91,7 +117,7 @@ export function ArButton({ style }: { style?: stylex.StyleXStyles }) {
               src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs="
               {...stylex.props(styles.quickLookImage)}
             />
-            {iOS ? 'Open in AR' : 'Download USDZ'}
+            {iOS ? 'Open in AR' : 'Download USDZ model'}
           </a>
         )}
       </CardDialog>

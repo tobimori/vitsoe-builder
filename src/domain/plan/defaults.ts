@@ -62,7 +62,7 @@ export const initialPlan: Plan = {
       shelf('item-9', 912, 220, 2, 1605),
       shelf('item-10', 912, 220, 2, 1955),
     ],
-    placement: { x: 700, z: 0, rotation: 0 },
+    placement: { wall: 'back', offset: 855, distance: 0 },
     trackMode: 'automatic',
     railHeight: 2000,
     mountHeight: 345,

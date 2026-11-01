@@ -511,6 +511,24 @@ function accessory(
   }
 }
 
+/** Everything `makeComponent` reads. Only integrated tables depend on their height. */
+export function componentKey(
+  product: CatalogProduct,
+  item: ModelItem,
+  variant: ProductVariant,
+  attachmentHeight?: number,
+) {
+  return JSON.stringify([
+    product.id,
+    variant.id,
+    item.finish,
+    item.frontFinish,
+    item.orientation,
+    item.open,
+    product.id === 'table' && [item.height, attachmentHeight],
+  ])
+}
+
 export function makeComponent(
   product: CatalogProduct,
   item: ModelItem,

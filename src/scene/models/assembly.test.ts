@@ -53,7 +53,7 @@ function configuration(): Plan {
       finish: 'off-white',
     },
   ]
-  plan.system.placement = { x: 500, z: 250, rotation: 0 }
+  plan.system.placement = { wall: 'back', offset: 500, distance: 250 }
   return plan
 }
 

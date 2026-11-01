@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
     "@react-three/drei": "10.7.9",
     "@react-three/fiber": "9.8.2",
     "@stylexjs/stylex": "0.19.1",
@@ -13,8 +14,6 @@
     "react-aria-components": "1.22.1",
     "react-dom": "19.3.1",
     "three": "0.187.0",
-    "three-gpu-pathtracer": "0.0.27",
-    "three-mesh-bvh": "0.9.17",
     "valibot": "1.5.0"
   },
   "devDependencies": {

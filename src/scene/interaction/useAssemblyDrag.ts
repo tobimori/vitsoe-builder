@@ -1,26 +1,28 @@
-import { useThree, type ThreeEvent } from '@react-three/fiber'
+import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { useEffect, useEffectEvent, useRef, useState, type RefObject } from 'react'
 import * as THREE from 'three'
 import { catalog } from '../../domain/catalog/catalog'
+import { sizedForBay } from '../../domain/catalog/options'
 import { isIntegratedTable } from '../../domain/catalog/families'
-import { snapPinHeight } from '../../domain/placement/grid'
+import { nearestFittingHeight, snapPinHeight } from '../../domain/placement/grid'
 import { proposeItemDuplicate, proposeItemMove } from '../../domain/placement/proposals'
-import { allowedFaces, hasIntegratedTable, isWallMounted } from '../../domain/plan/system'
+import {
+  allowedFaces,
+  hasIntegratedTable,
+  isWallMounted,
+  setPlacement,
+} from '../../domain/plan/system'
 import type { Plan, PlanItem } from '../../domain/plan/types'
+import { fitPlacement } from '../../domain/supports/footprint'
 import type { SupportRunMove } from '../../domain/supports/run'
-import { usesHPosts, type SupportTrackPlan } from '../../domain/supports/tracks'
+import type { SupportTrackPlan } from '../../domain/supports/tracks'
 import type { Face } from '../../domain/types'
 import { editor } from '../../editor/editor'
-import type { DragStatus } from '../../editor/store'
-import { bayCentre, pinDepth, systemWidth } from '../models/assembly'
+import type { DragStatus, Selection } from '../../editor/store'
+import { bayCentre, pinDepth } from '../models/assembly'
 import { mm } from '../models/primitives'
-import {
-  dragPreviewBounds,
-  faceTargetScreen,
-  faceUnderPointer,
-  makeDragGhost,
-  projectedFaceGesture,
-} from './drag'
+import { runAxes } from '../view/axes'
+import { dragPreviewBounds, faceUnderPointer, makeDragGhost, setVisible, showFit } from './drag'
 
 type CaptureTarget = Element & {
   setPointerCapture: (id: number) => void
@@ -34,7 +36,21 @@ interface Measurements {
   tabletop: boolean
 }
 
-/** Where a dragged component would land, in metres within the run. */
+/** Width, depth and lowest point of a component, from its catalogue size where it has one. */
+export function measureItem(item: PlanItem, bounds: THREE.Box3): Measurements {
+  const variant = catalog.variant(item.productId, item.variantId)
+  return {
+    width: variant ? mm(variant.width) : bounds.max.x - bounds.min.x,
+    depth:
+      item.orientation === 'vertical'
+        ? bounds.max.z - bounds.min.z
+        : Math.max(mm(variant?.depth ?? 0), bounds.max.z),
+    bottom: bounds.min.y,
+    tabletop: isIntegratedTable(item.productId),
+  }
+}
+
+/** Where a dragged or measured component is, in metres within the run. */
 export interface ItemPreview extends Measurements {
   x: number
   z: number
@@ -42,29 +58,37 @@ export interface ItemPreview extends Measurements {
   face: Face
 }
 
-/** Where a dragged support run would sit, in room metres. */
+/** Where a dragged support run would sit along its wall, from the wall and above the floor. */
 export interface SupportPreview {
-  x: number
-  z: number
+  offset: number
+  distance: number
   height: number
-}
-
-/** The affordance that shows where to drag a component to reach the other face. */
-export interface FaceMarker {
-  point: THREE.Vector3
-  destination: THREE.Vector3
-  face: Face
 }
 
 interface ItemDrag {
   id: string
   item: PlanItem
+  /** The variant for the target bay, which can differ in width from the original. */
+  variantId: string
+  /** The face it would land on, which a face button under the pointer decides. */
   face: Face
+  /** The face it moves on in the view; resting on the other face's button turns to it. */
+  side: Face
+  turnTimer: number | undefined
+  /** The drag plane changed with the side, so the next move takes a new start point. */
+  rebase: boolean
   plane: THREE.Plane
   startPoint: THREE.Vector3
   motionOrigin: THREE.Vector3
+  /** Where the pointer holds the component, from its pin point within the run. */
+  grab: THREE.Vector2
   ghost: THREE.Group
-  material: THREE.MeshBasicMaterial
+  /** Where the ghost glides to: the snapped position the component would land on. */
+  landing: THREE.Vector3
+  /** The components being moved, hidden while their ghost stands in for them. */
+  originals: THREE.Object3D[]
+  /** Horizontal scale of the ghost, for a bay of another width. */
+  stretch: number
   target: CaptureTarget
   pointerId: number
   moved: boolean
@@ -72,10 +96,6 @@ interface ItemDrag {
   bayIndex: number
   height: number
   startScreen: THREE.Vector2
-  oppositeScreen: THREE.Vector2
-  client: THREE.Vector2
-  marker: THREE.Vector3 | null
-  destinationPoint: THREE.Vector3
   duplicate: boolean
   measurements: Measurements
   published: DragStatus | null
@@ -93,6 +113,9 @@ interface SupportDrag {
 
 const up = new THREE.Vector3(0, 1, 0)
 
+/** How long a dragged component rests on the other face's button before the view turns. */
+const TURN_DELAY = 450
+
 function sameStatus(a: DragStatus | null, b: DragStatus) {
   return (
     a?.itemId === b.itemId &&
@@ -100,6 +123,11 @@ function sameStatus(a: DragStatus | null, b: DragStatus) {
     a.valid === b.valid &&
     a.duplicate === b.duplicate
   )
+}
+
+function stopTurn(current: ItemDrag) {
+  window.clearTimeout(current.turnTimer)
+  current.turnTimer = undefined
 }
 
 function releaseCapture(target: CaptureTarget, pointerId: number) {
@@ -112,44 +140,58 @@ function releaseCapture(target: CaptureTarget, pointerId: number) {
 
 /**
  * Pointer handling for moving and copying components, and for moving the whole support run.
- * Components snap to bays and the track grid; the side buttons and a depth gesture change face.
+ * Components snap to bays and the track grid. Dropping on the other face's button moves a
+ * component there; resting on it turns the view, and the drag goes on at that face.
  */
 export function useAssemblyDrag({
   plan,
   tracks,
   assembly,
   placement,
-  showDimensions,
 }: {
   plan: Plan
   tracks: SupportTrackPlan[]
   assembly: THREE.Group
   placement: RefObject<THREE.Group | null>
-  showDimensions: boolean
 }) {
-  const { invalidate, camera, gl } = useThree()
+  const invalidate = useThree((state) => state.invalidate)
   const itemDrag = useRef<ItemDrag | null>(null)
   const supportDrag = useRef<SupportDrag | null>(null)
   const [dragging, setDragging] = useState(false)
-  const [hovering, setHovering] = useState(false)
+  const [hover, setHover] = useState<Selection>(null)
   const [itemPreview, setItemPreview] = useState<ItemPreview | null>(null)
   const [supportPreview, setSupportPreview] = useState<SupportPreview | null>(null)
-  const [marker, setMarker] = useState<FaceMarker | null>(null)
 
   const faces = allowedFaces(plan)
-  const width = systemWidth(plan)
-  const rotation = THREE.MathUtils.degToRad(plan.system.placement.rotation)
+  const { rotation } = runAxes(plan)
 
   useEffect(() => {
-    document.body.style.cursor = dragging ? 'grabbing' : hovering ? 'grab' : ''
+    document.body.style.cursor = dragging ? 'grabbing' : hover ? 'grab' : ''
     return () => {
       document.body.style.cursor = ''
     }
-  }, [dragging, hovering])
+  }, [dragging, hover])
+
+  // Glides the ghost between snapped positions instead of jumping
+  useFrame((_, delta) => {
+    const current = itemDrag.current
+    if (!current?.ghost.visible) return
+    const { ghost, landing, stretch } = current
+    if (ghost.position.distanceTo(landing) < 0.0002 && Math.abs(ghost.scale.x - stretch) < 0.001) {
+      ghost.position.copy(landing)
+      ghost.scale.x = stretch
+      return
+    }
+    const ease = 1 - Math.exp(-delta * 28)
+    ghost.position.lerp(landing, ease)
+    ghost.scale.x += (stretch - ghost.scale.x) * ease
+    invalidate()
+  })
 
   function publish(current: ItemDrag) {
     const candidate = {
       ...current.item,
+      variantId: current.variantId,
       bayIndex: current.bayIndex,
       height: current.height,
       face: current.face,
@@ -161,18 +203,26 @@ export function useAssemblyDrag({
     if (proposal) current.height = proposal.candidate.height
 
     const x = bayCentre(plan, current.bayIndex)
-    current.ghost.position.set(x, mm(current.height), pinDepth(plan, tracks, current.face))
-    current.ghost.rotation.y = current.face === 'front' ? 0 : Math.PI
+    current.landing.set(x, mm(current.height), pinDepth(plan, tracks, current.face))
+    // Turning to the other face is not a glide, so the ghost jumps there
+    const angle = current.face === 'front' ? 0 : Math.PI
+    if (current.ghost.rotation.y !== angle) current.ghost.position.copy(current.landing)
+    current.ghost.rotation.set(0, angle, 0)
     current.ghost.visible = current.moved
-    current.material.color.set(current.valid ? '#0076ad' : '#b53c30')
-    current.ghost.updateMatrixWorld(true)
+    showFit(current.ghost, current.valid)
+    // The ghost stretches to the width of the target bay until the drop builds the real one
+    const width = catalog.variant(current.item.productId, current.variantId)?.width
+    const original = catalog.variant(current.item.productId, current.item.variantId)?.width
+    current.stretch = width && original ? width / original : 1
+    setVisible(current.originals, !current.moved || current.duplicate)
 
-    if (current.moved && showDimensions) {
+    if (current.moved) {
       const preview = {
         ...current.measurements,
+        width: current.measurements.width * current.stretch,
         x,
-        z: current.ghost.position.z,
-        height: current.ghost.position.y,
+        z: current.landing.z,
+        height: current.landing.y,
         face: current.face,
       }
       setItemPreview((previous) =>
@@ -180,6 +230,7 @@ export function useAssemblyDrag({
         previous.x === preview.x &&
         previous.z === preview.z &&
         previous.height === preview.height &&
+        previous.width === preview.width &&
         previous.face === preview.face
           ? previous
           : preview,
@@ -206,13 +257,15 @@ export function useAssemblyDrag({
     supportDrag.current = null
 
     if (current) {
+      stopTurn(current)
+      // Ghost geometry and materials belong to the live assembly
       current.ghost.removeFromParent()
-      // Ghost geometry belongs to the live assembly; only its material is owned here
-      current.material.dispose()
+      setVisible(current.originals, true)
       releaseCapture(current.target, current.pointerId)
       if (commit && current.moved && current.valid) {
         editor.trigger.dropItem({
           id: current.id,
+          variantId: current.variantId,
           bayIndex: current.bayIndex,
           height: current.height,
           face: current.face,
@@ -228,7 +281,6 @@ export function useAssemblyDrag({
     }
 
     setDragging(false)
-    setMarker(null)
     setItemPreview(null)
     setSupportPreview(null)
     editor.trigger.dragChanged({ drag: null })
@@ -264,8 +316,8 @@ export function useAssemblyDrag({
       target,
       moved: false,
       move: {
-        x: plan.system.placement.x,
-        z: plan.system.placement.z,
+        offset: plan.system.placement.offset,
+        distance: plan.system.placement.distance,
         mountHeight: plan.system.mountHeight,
       },
     }
@@ -287,66 +339,44 @@ export function useAssemblyDrag({
     )
     const startPoint = event.ray.intersectPlane(plane, new THREE.Vector3())
     if (!startPoint) return
+    const grabbed = group.worldToLocal(startPoint.clone())
 
     const proposal = proposeItemMove(plan, catalog, item)
     if (!proposal) return
 
-    const { ghost, material } = makeDragGhost(assembly, proposal.movedItemIds, object)
+    const ghost = makeDragGhost(assembly, proposal.movedItemIds, object)
     ghost.visible = false
     group.add(ghost)
-
-    const bounds = dragPreviewBounds(ghost, id)
-    const variant = catalog.variant(item.productId, item.variantId)
-    const measurements = {
-      width: variant ? mm(variant.width) : bounds.max.x - bounds.min.x,
-      depth:
-        item.orientation === 'vertical'
-          ? bounds.max.z - bounds.min.z
-          : Math.max(mm(variant?.depth ?? 0), bounds.max.z),
-      bottom: bounds.min.y,
-      tabletop: isIntegratedTable(item.productId),
-    }
-
-    // Mirror the grab point through the supports to find the same spot on the other face
-    const localHit = group.worldToLocal(event.point.clone())
-    const opposite = localHit.clone()
-    opposite.z = (usesHPosts(plan, tracks) ? -0.068 : -0.048) - localHit.z
-
-    const rect = gl.domElement.getBoundingClientRect()
-    const projected = group.localToWorld(opposite.clone()).project(camera)
-    const startScreen = new THREE.Vector2(event.clientX, event.clientY)
-    const projectedScreen = new THREE.Vector2(
-      rect.left + ((projected.x + 1) * rect.width) / 2,
-      rect.top + ((1 - projected.y) * rect.height) / 2,
+    const originals = assembly.children.filter((child) =>
+      proposal.movedItemIds.includes(child.userData.itemId as string),
     )
-    const oppositeScreen = faceTargetScreen(startScreen, projectedScreen, rect.left, rect.width)
-    const markerWorld = new THREE.Vector3(
-      ((oppositeScreen.x - rect.left) / rect.width) * 2 - 1,
-      1 - ((oppositeScreen.y - rect.top) / rect.height) * 2,
-      projected.z,
-    ).unproject(camera)
+
+    const measurements = measureItem(item, dragPreviewBounds(ghost, id))
 
     const target = event.target as CaptureTarget
     itemDrag.current = {
       id,
       item,
+      variantId: item.variantId,
       face: item.face,
+      side: item.face,
+      turnTimer: undefined,
+      rebase: false,
       plane,
       startPoint,
       motionOrigin: object.position.clone(),
+      grab: new THREE.Vector2(grabbed.x - object.position.x, grabbed.y - object.position.y),
       ghost,
-      material,
+      landing: ghost.position.clone(),
+      originals,
+      stretch: 1,
       target,
       pointerId: event.pointerId,
       moved: false,
       valid: proposal.valid,
       bayIndex: item.bayIndex,
       height: item.height,
-      startScreen,
-      oppositeScreen,
-      client: startScreen.clone(),
-      marker: faces.includes('back') ? group.worldToLocal(markerWorld) : null,
-      destinationPoint: opposite,
+      startScreen: new THREE.Vector2(event.clientX, event.clientY),
       duplicate: event.altKey,
       measurements,
       published: null,
@@ -358,6 +388,7 @@ export function useAssemblyDrag({
   function onPointerDown(event: ThreeEvent<PointerEvent>) {
     const group = placement.current
     if (!group || event.button !== 0 || itemDrag.current || supportDrag.current) return
+    if (editor.getSnapshot().context.placing) return
     // The closest visible surface owns the click, including the rear face
     event.stopPropagation()
 
@@ -380,82 +411,84 @@ export function useAssemblyDrag({
     if (delta.length() < 0.012 && !support.moved) return
     support.moved = true
 
-    const { mountingType } = plan.system
-    if (isWallMounted(mountingType)) {
-      // Wall-bound runs slide along their wall; only wall-mounted runs without table legs rise
-      delta.applyAxisAngle(up, -rotation)
-      delta.z = 0
-      if (mountingType === 'semi-wall' || hasIntegratedTable(plan)) delta.y = 0
-      delta.applyAxisAngle(up, rotation)
-    } else {
-      delta.y = 0
-    }
+    // In the run's axes: x along the wall, y up, z away from the wall
+    const { mountingType, placement, mountHeight } = plan.system
+    const local = delta.applyAxisAngle(up, -rotation)
+    // Wall-bound runs slide along their wall; only wall-mounted runs without table legs rise
+    const { offset, distance } = fitPlacement(
+      setPlacement(plan, {
+        offset: placement.offset + local.x * 1000,
+        distance: placement.distance + local.z * 1000,
+      }),
+      catalog,
+    ).system.placement
+    const height =
+      mountingType === 'wall' && !hasIntegratedTable(plan)
+        ? Math.max(0, Math.round(mountHeight + local.y * 1000))
+        : mountHeight
 
-    support.move = {
-      x: Math.round(plan.system.placement.x + delta.x * 1000),
-      z: Math.round(plan.system.placement.z + delta.z * 1000),
-      mountHeight: Math.round(plan.system.mountHeight + delta.y * 1000),
-    }
-    group.position.copy(support.originalPosition).add(delta)
+    support.move = { offset, distance, mountHeight: height }
+    local.set(offset - placement.offset, height - mountHeight, distance - placement.distance)
+    group.position
+      .copy(support.originalPosition)
+      .add(local.divideScalar(1000).applyAxisAngle(up, rotation))
     group.updateMatrixWorld(true)
 
-    if (showDimensions) {
-      const anchor = new THREE.Vector3(-width / 2, 0, 0).applyAxisAngle(up, rotation)
-      const preview = {
-        x: Math.round((group.position.x + anchor.x) * 1000) / 1000,
-        z: Math.round((group.position.z + anchor.z) * 1000) / 1000,
-        height: mm(support.move.mountHeight),
-      }
-      setSupportPreview((previous) =>
-        previous &&
-        previous.x === preview.x &&
-        previous.z === preview.z &&
-        previous.height === preview.height
-          ? previous
-          : preview,
-      )
-    }
+    setSupportPreview((previous) =>
+      previous?.offset === offset && previous.distance === distance && previous.height === height
+        ? previous
+        : { offset, distance, height },
+    )
     invalidate()
   }
 
-  function moveItem(event: ThreeEvent<PointerEvent>, current: ItemDrag, group: THREE.Group) {
-    event.stopPropagation()
-    current.client.set(event.clientX, event.clientY)
-    if (!current.moved && current.client.distanceTo(current.startScreen) < 8) return
+  /** Turns the view to the other face, where the drag goes on, after a short rest on its button. */
+  function holdToTurn(current: ItemDrag, face: Face) {
+    if (current.turnTimer !== undefined) return
+    current.turnTimer = window.setTimeout(() => {
+      current.turnTimer = undefined
+      const group = placement.current
+      if (itemDrag.current !== current || !group) return
+      current.side = face
+      current.rebase = true
+      current.plane.setFromNormalAndCoplanarPoint(
+        new THREE.Vector3(0, 0, 1).applyAxisAngle(up, rotation),
+        group.localToWorld(new THREE.Vector3(0, 0, pinDepth(plan, tracks, face))),
+      )
+      editor.trigger.selectFace({ face })
+    }, TURN_DELAY)
+  }
 
-    if (!current.moved && current.marker) {
-      setMarker({
-        point: current.marker,
-        destination: current.destinationPoint,
-        face: current.item.face === 'front' ? 'back' : 'front',
-      })
-    }
+  function moveItem(event: ThreeEvent<PointerEvent>, current: ItemDrag) {
+    event.stopPropagation()
+    const client = new THREE.Vector2(event.clientX, event.clientY)
+    if (!current.moved && client.distanceTo(current.startScreen) < 8) return
+
     current.moved = true
     current.duplicate = event.altKey
 
-    const previousFace = current.face
-    const gesture = current.marker
-      ? projectedFaceGesture(
-          current.startScreen,
-          current.oppositeScreen,
-          current.client,
-          current.item.face,
-          current.face,
-        )
-      : { face: current.face, depthGesture: false }
     const buttonFace = faceUnderPointer(event.clientX, event.clientY)
+    const onButton = buttonFace !== undefined && faces.includes(buttonFace)
+    if (onButton && buttonFace !== current.side) holdToTurn(current, buttonFace)
+    else stopTurn(current)
 
-    if (buttonFace && faces.includes(buttonFace)) {
+    if (onButton) {
       current.face = buttonFace
       current.bayIndex = current.item.bayIndex
-      current.height = current.item.height
-    } else if (gesture.depthGesture || gesture.face !== current.face) {
-      current.face = gesture.face
-      current.bayIndex = current.item.bayIndex
+      current.variantId = current.item.variantId
       current.height = current.item.height
     } else {
+      current.face = current.side
       const point = event.ray.intersectPlane(current.plane, new THREE.Vector3())
       if (!point) return
+      const group = placement.current
+      if (current.rebase && group) {
+        current.rebase = false
+        current.startPoint.copy(point)
+        // The component turned round with the view, so the spot held under the pointer mirrors
+        const held = group.worldToLocal(point.clone())
+        current.motionOrigin.set(held.x + current.grab.x, held.y - current.grab.y, 0)
+      }
       const delta = point.sub(current.startPoint).applyAxisAngle(up, -rotation)
 
       let closest = Number.POSITIVE_INFINITY
@@ -466,24 +499,26 @@ export function useAssemblyDrag({
           current.bayIndex = index
         }
       })
-      current.height = snapPinHeight(
-        Math.max(
-          50,
-          Math.min(plan.room.ceilingHeight - 50, (current.motionOrigin.y + delta.y) * 1000),
-        ),
-        plan,
+      const height = THREE.MathUtils.clamp(
+        (current.motionOrigin.y + delta.y) * 1000,
+        50,
+        plan.room.ceilingHeight - 50,
       )
+      const candidate = sizedForBay(
+        { ...current.item, bayIndex: current.bayIndex, face: current.face },
+        plan.system.bays,
+        catalog,
+      )
+      current.variantId = candidate.variantId
+      const propose = current.duplicate ? proposeItemDuplicate : proposeItemMove
+      current.height =
+        nearestFittingHeight(
+          height,
+          plan,
+          (fitting) => propose(plan, catalog, { ...candidate, height: fitting })?.valid ?? false,
+        ) ?? snapPinHeight(height, plan)
     }
     publish(current)
-
-    if (current.face !== previousFace) {
-      // Re-anchor planar motion after crossing, so the depth gesture cannot also change height
-      const worldPoint = group.localToWorld(current.ghost.position.clone())
-      current.plane.setFromNormalAndCoplanarPoint(current.plane.normal, worldPoint)
-      const anchor = event.ray.intersectPlane(current.plane, new THREE.Vector3())
-      if (anchor) current.startPoint.copy(anchor)
-      current.motionOrigin.copy(current.ghost.position)
-    }
   }
 
   function onPointerMove(event: ThreeEvent<PointerEvent>) {
@@ -493,7 +528,7 @@ export function useAssemblyDrag({
     const support = supportDrag.current
     const current = itemDrag.current
     if (support) moveSupportRun(event, support, group)
-    else if (current && event.pointerId === current.pointerId) moveItem(event, current, group)
+    else if (current && event.pointerId === current.pointerId) moveItem(event, current)
   }
 
   function onPointerUp(event: ThreeEvent<PointerEvent>) {
@@ -508,8 +543,8 @@ export function useAssemblyDrag({
       if (face && faces.includes(face)) {
         current.face = face
         current.bayIndex = current.item.bayIndex
+        current.variantId = current.item.variantId
         current.height = current.item.height
-        current.client.set(event.clientX, event.clientY)
       }
       publish(current)
     }
@@ -517,24 +552,26 @@ export function useAssemblyDrag({
   }
 
   function onPointerOver(event: ThreeEvent<PointerEvent>) {
-    if (event.object.userData.itemId || event.object.userData.supportIndex !== undefined) {
-      event.stopPropagation()
-      setHovering(true)
-    }
+    const itemId = event.object.userData.itemId as string | undefined
+    const supportIndex = event.object.userData.supportIndex as number | undefined
+    if (!itemId && supportIndex === undefined) return
+
+    event.stopPropagation()
+    setHover(itemId ? { type: 'item', id: itemId } : { type: 'support', index: supportIndex ?? 0 })
   }
 
   return {
     dragging,
+    hover,
     itemPreview,
     supportPreview,
-    marker,
     handlers: {
       onPointerDown,
       onPointerMove,
       onPointerUp,
       onPointerCancel: onPointerUp,
       onPointerOver,
-      onPointerOut: () => setHovering(false),
+      onPointerOut: () => setHover(null),
     },
   }
 }

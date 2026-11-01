@@ -1,113 +1,64 @@
 import * as stylex from '@stylexjs/stylex'
 import { useAtom } from '@xstate/store-react'
-import { Button } from 'react-aria-components'
-import { hasIntegratedTable, isWallMounted, runsAlongZ } from '../../domain/plan/system'
+import { hasIntegratedTable, isTwoSided } from '../../domain/plan/system'
 import type { SupportRunMove } from '../../domain/supports/run'
 import { editor, selectors, usePlan } from '../../editor/editor'
-import { NumberField, StaticField } from '../../ui/fields'
+import { NumberField, Rows, StaticField } from '../../ui/fields'
+import { Section } from '../../ui/section'
 import { text } from '../../ui/text'
-import { colors } from '../../ui/tokens.stylex'
-import { footerButton, InspectorPanel } from './InspectorPanel'
+import { PositionFields } from '../room/PositionFields'
+import { InspectorHeader } from './InspectorHeader'
 
-const styles = stylex.create({
-  tracks: {
-    marginTop: 16,
-    borderTopWidth: 1,
-    borderTopStyle: 'solid',
-    borderTopColor: colors.line,
-  },
-  track: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 12,
-    margin: 0,
-    padding: '10px 0',
-    borderBottomWidth: 1,
-    borderBottomStyle: 'solid',
-    borderBottomColor: colors.divider,
-    fontSize: 13,
-  },
-})
-
-export function SupportInspector({
-  supportIndex,
-  belowFacePicker,
-}: {
-  supportIndex: number
-  belowFacePicker: boolean
-}) {
+export function SupportInspector({ supportIndex }: { supportIndex: number }) {
   const plan = usePlan()
   const tracks = useAtom(selectors.tracks).filter((track) => track.supportIndex === supportIndex)
   const { mountingType, placement, mountHeight } = plan.system
-  const wallMounted = isWallMounted(mountingType)
-  const alongZ = runsAlongZ(placement)
   const heightFixed = hasIntegratedTable(plan)
 
   const move = (patch: Partial<SupportRunMove>) =>
-    editor.trigger.moveSupports({ move: { x: placement.x, z: placement.z, mountHeight, ...patch } })
+    editor.trigger.moveSupports({
+      move: { offset: placement.offset, distance: placement.distance, mountHeight, ...patch },
+    })
 
   return (
-    <InspectorPanel
-      label="Selected support"
-      eyebrow="Connected support run"
-      title={`Support ${supportIndex + 1}`}
-      subtitle="Moving this support keeps every bay centre fixed."
-      belowFacePicker={belowFacePicker}
-      footer={
-        <Button
-          onPress={() => editor.trigger.clearSelection()}
-          {...stylex.props(footerButton.base)}
-        >
-          Done
-        </Button>
-      }
-    >
-      {(!wallMounted || !alongZ) && (
-        <NumberField
-          label="Run from left"
-          value={placement.x}
-          min={0}
-          max={plan.room.width}
-          onChange={(x) => move({ x })}
-        />
-      )}
-      {(!wallMounted || alongZ) && (
-        <NumberField
-          label="Run from back"
-          value={placement.z}
-          min={0}
-          max={plan.room.depth}
-          onChange={(z) => move({ z })}
-        />
-      )}
-      {mountingType === 'wall' && (
-        <>
-          <NumberField
-            label="Track bottom"
-            value={mountHeight}
-            min={0}
-            max={plan.room.ceilingHeight - 110}
-            disabled={heightFixed}
-            onChange={(height) => move({ mountHeight: height })}
-          />
-          {heightFixed && (
-            <p {...stylex.props(text.hint)}>
-              Table legs fix the installation height. Horizontal movement remains available.
-            </p>
+    <>
+      <InspectorHeader
+        title={`Support ${supportIndex + 1}`}
+        subtitle="The supports move together, so the bays keep their widths."
+      />
+      <Section title="Position">
+        <Rows>
+          <PositionFields />
+          {mountingType === 'wall' && (
+            <NumberField
+              label="Bottom above floor"
+              value={mountHeight}
+              min={0}
+              max={plan.room.ceilingHeight - 110}
+              disabled={heightFixed}
+              onChange={(height) => move({ mountHeight: height })}
+            />
           )}
-        </>
-      )}
-      {mountingType === 'semi-wall' && <StaticField label="Wall standoff" value="Hardware fixed" />}
-      <div {...stylex.props(styles.tracks)}>
-        {tracks.map((track) => (
-          <p key={track.face} {...stylex.props(styles.track)}>
-            <span>{track.face} E-track</span>
-            <strong>
-              {track.bottom}–{track.top} mm
-            </strong>
-          </p>
-        ))}
-      </div>
-    </InspectorPanel>
+        </Rows>
+        <p {...stylex.props(text.hint)}>
+          {mountingType === 'wall' && heightFixed
+            ? 'The table legs set the height. You can still move the system along the wall.'
+            : 'You can also drag the support in the view.'}
+        </p>
+      </Section>
+      <Section title="E-tracks">
+        <Rows>
+          {tracks.map((track) => (
+            <StaticField
+              key={track.face}
+              label={
+                isTwoSided(mountingType) ? `${track.face === 'front' ? 'Front' : 'Back'}` : 'Height'
+              }
+              value={`${track.bottom}–${track.top} mm`}
+            />
+          ))}
+        </Rows>
+      </Section>
+    </>
   )
 }

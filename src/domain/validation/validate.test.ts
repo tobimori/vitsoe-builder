@@ -48,7 +48,7 @@ describe('606 fit and combination rules', () => {
     expect(collision?.itemIds).toEqual(['cabinet', 'shelf'])
   })
 
-  it('checks both faces and room corners after a 90 degree rotation', () => {
+  it('checks both faces and room corners on a side wall', () => {
     const plan = copy()
     plan.system.mountingType = 'freestanding'
     plan.system.bays = [{ id: 'wide', centreWidth: 912 }]
@@ -56,7 +56,7 @@ describe('606 fit and combination rules', () => {
       shelf('front', 'steel-912-300', 555),
       shelf('back', 'steel-912-300', 555, 'back'),
     ]
-    plan.system.placement = { x: 200, z: 200, rotation: 90 }
+    plan.system.placement = { wall: 'left', offset: 200, distance: 200 }
     plan.room = { ...plan.room, width: 500, depth: 1600 }
 
     expect(codes(plan)).toContain('room-boundary')
@@ -121,15 +121,15 @@ describe('606 fit and combination rules', () => {
     const freestanding = copy()
     freestanding.system.mountingType = 'freestanding'
     freestanding.system.items = []
-    freestanding.system.placement.z = 450
+    freestanding.system.placement.distance = 450
     expect(codes(freestanding)).toContain('room-boundary')
-    freestanding.system.placement.z = 459
+    freestanding.system.placement.distance = 459
     expect(codes(freestanding)).not.toContain('room-boundary')
 
     const drawer = copy()
     drawer.system.mountingType = 'floor-to-ceiling'
     drawer.system.bays = [{ id: 'narrow', centreWidth: 667 }]
-    drawer.system.placement.z = 300
+    drawer.system.placement.distance = 300
     drawer.room.depth = 700
     const closed: PlanItem = {
       id: 'drawer',

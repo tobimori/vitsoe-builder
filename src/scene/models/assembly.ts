@@ -3,17 +3,18 @@ import type { Catalog } from '../../domain/catalog/catalog'
 import { hasFront, isIntegratedTable } from '../../domain/catalog/families'
 import { carrierHeight } from '../../domain/placement/grid'
 import { resolveItemFinish } from '../../domain/plan/finish'
-import type { Plan } from '../../domain/plan/types'
+import type { Plan, PlanItem } from '../../domain/plan/types'
 import {
   deriveSupportTrackPlans,
   usesHPosts,
   type SupportTrackPlan,
 } from '../../domain/supports/tracks'
 import type { Face } from '../../domain/types'
-import { carrierPinName, makeComponent } from './components'
+import { carrierPinName, componentKey, makeComponent } from './components'
 import { makeShelfDecor } from './decor'
 import { mountingDepths } from './mounting'
 import { mm } from './primitives'
+import { disposeGeometry, reuse, startBuild } from './reuse'
 import { addSupports } from './supports'
 
 export function systemWidth(plan: Plan) {
@@ -38,7 +39,44 @@ export function pinDepth(plan: Plan, tracks: SupportTrackPlan[], face: Face) {
   return mm(face === 'back' ? depths.backPin : depths.frontPin)
 }
 
+/** One component in its finish, posed at its bay, pin height and face within the run. */
+export function buildComponent(
+  plan: Plan,
+  catalog: Catalog,
+  tracks: SupportTrackPlan[],
+  item: PlanItem,
+) {
+  const product = catalog.product(item.productId)
+  const variant = catalog.variant(item.productId, item.variantId)
+  if (!product || !variant || !plan.system.bays[item.bayIndex] || product.id === 'open-back')
+    return undefined
+
+  const component = new THREE.Group()
+  component.name = `${product.name} · ${item.id}`
+  component.userData.itemId = item.id
+  component.position.set(
+    bayCentre(plan, item.bayIndex),
+    mm(item.height),
+    pinDepth(plan, tracks, item.face),
+  )
+  if (item.face === 'back') component.rotation.y = Math.PI
+  const modelItem = { ...item, ...resolveItemFinish(plan.system.finish, item, catalog) }
+  const attachmentHeight = carrierHeight(item, plan)
+  component.add(
+    reuse(componentKey(product, modelItem, variant, attachmentHeight), () =>
+      makeComponent(product, modelItem, variant, attachmentHeight),
+    ),
+  )
+  const decor = makeShelfDecor(item, variant, component)
+  if (decor) component.add(decor)
+  component.traverse((object) => {
+    object.userData.itemId = item.id
+  })
+  return component
+}
+
 export function buildAssembly(plan: Plan, catalog: Catalog) {
+  startBuild()
   const root = new THREE.Group()
   root.name = '606 configured assembly'
   const { system } = plan
@@ -50,32 +88,8 @@ export function buildAssembly(plan: Plan, catalog: Catalog) {
   const items = new Map(system.items.map((item) => [item.id, item]))
 
   for (const item of system.items) {
-    const product = catalog.product(item.productId)
-    const variant = catalog.variant(item.productId, item.variantId)
-    if (!product || !variant || !system.bays[item.bayIndex] || product.id === 'open-back') continue
-
-    const component = new THREE.Group()
-    component.name = `${product.name} · ${item.id}`
-    component.userData.itemId = item.id
-    component.position.set(
-      bayCentre(plan, item.bayIndex),
-      mm(item.height),
-      pinDepth(plan, tracks, item.face),
-    )
-    if (item.face === 'back') component.rotation.y = Math.PI
-    component.add(
-      makeComponent(
-        product,
-        { ...item, ...resolveItemFinish(system.finish, item, catalog) },
-        variant,
-        carrierHeight(item, plan),
-      ),
-    )
-    const decor = makeShelfDecor(item, variant, component)
-    if (decor) component.add(decor)
-    component.traverse((object) => {
-      object.userData.itemId = item.id
-    })
+    const component = buildComponent(plan, catalog, tracks, item)
+    if (!component) continue
     groups.set(item.id, component)
     root.add(component)
   }
@@ -166,7 +180,7 @@ export function buildAssembly(plan: Plan, catalog: Catalog) {
       .join(':')
     if (connections.has(key)) {
       pin.removeFromParent()
-      pin.geometry.dispose()
+      disposeGeometry(pin.geometry)
       continue
     }
     connections.add(key)
@@ -186,6 +200,6 @@ export function buildAssembly(plan: Plan, catalog: Catalog) {
 /** Materials and textures are cached; only assembly-specific geometry is released. */
 export function disposeAssembly(root: THREE.Group) {
   root.traverse((object) => {
-    if (object instanceof THREE.Mesh) object.geometry.dispose()
+    if (object instanceof THREE.Mesh) disposeGeometry(object.geometry)
   })
 }

@@ -1,7 +1,15 @@
 import type { Catalog } from '../catalog/catalog'
 import { effectiveDepth } from '../placement/envelope'
-import { allowedFaces, sideClearance, totalCentreWidth } from '../plan/system'
+import {
+  allowedFaces,
+  isWallMounted,
+  setPlacement,
+  sideClearance,
+  totalCentreWidth,
+  wallTieDistance,
+} from '../plan/system'
 import type { Plan } from '../plan/types'
+import { acrossRoom, runFrame, wallLength } from '../plan/walls'
 import type { Face } from '../types'
 
 /** Depth of a wall-mounted E-track system from the wall. */
@@ -16,11 +24,8 @@ function supportDepthExtent(plan: Plan) {
   if (mountingType === 'freestanding') return { min: -459, max: 391 }
 
   if (mountingType === 'semi-wall') {
-    const bracketDepth = structureOptions.wallBracket === 'long' ? 110 : 70
-    const extension = structureOptions.extensionBolts ? 65 : 0
-    const wallTieRear = -24 - bracketDepth - extension + 1.5
     return {
-      min: Math.min(-89, wallTieRear),
+      min: Math.min(-89, -wallTieDistance(structureOptions)),
       max: structureOptions.stabilisingFeet ? 376 : 41,
     }
   }
@@ -32,8 +37,8 @@ function supportDepthExtent(plan: Plan) {
   return tallPosts ? { min: -99, max: 31 } : { min: -89, max: 41 }
 }
 
-/** How far, in millimetres, the system's footprint extends beyond the room walls. */
-export function roomBoundaryOverflow(plan: Plan, catalog: Catalog) {
+/** How far the system reaches beyond its outer supports, and in front of and behind them. */
+function footprintExtent(plan: Plan, catalog: Catalog) {
   const { system, room } = plan
   const supportDepth = supportDepthExtent(plan)
   const hPosts =
@@ -49,34 +54,65 @@ export function roomBoundaryOverflow(plan: Plan, catalog: Catalog) {
         return variant ? effectiveDepth(item, variant) + offset : 0
       })
 
-  const frontDepth = Math.max(supportDepth.max, ...itemDepths('front', 11))
-  const backDepth = allowedFaces(plan).includes('back')
-    ? Math.max(-supportDepth.min, ...itemDepths('back', rearAttachmentOffset))
-    : Math.max(0, -supportDepth.min)
+  return {
+    side: sideClearance(system.mountingType),
+    front: Math.max(supportDepth.max, ...itemDepths('front', 11)),
+    back: allowedFaces(plan).includes('back')
+      ? Math.max(-supportDepth.min, ...itemDepths('back', rearAttachmentOffset))
+      : Math.max(0, -supportDepth.min),
+  }
+}
 
-  const clearance = sideClearance(system.mountingType)
+/** The corners of the system's footprint in the room, in millimetres. */
+export function footprintCorners(plan: Plan, catalog: Catalog) {
+  const { side, front, back } = footprintExtent(plan, catalog)
   const span = totalCentreWidth(plan)
-  const centreX = system.placement.x + span / 2
-  const centreZ = system.placement.z
-  const angle = (system.placement.rotation * Math.PI) / 180
+  const { x, z, cos, sin } = runFrame(plan)
 
-  const corners = [
-    [-span / 2 - clearance, -backDepth],
-    [span / 2 + clearance, -backDepth],
-    [-span / 2 - clearance, frontDepth],
-    [span / 2 + clearance, frontDepth],
-  ].map(([x = 0, z = 0]) => ({
-    x: centreX + x * Math.cos(angle) + z * Math.sin(angle),
-    z: centreZ - x * Math.sin(angle) + z * Math.cos(angle),
+  return [
+    [-span / 2 - side, -back],
+    [span / 2 + side, -back],
+    [span / 2 + side, front],
+    [-span / 2 - side, front],
+  ].map(([along = 0, out = 0]) => ({
+    x: x + along * cos + out * sin,
+    z: z - along * sin + out * cos,
   }))
+}
 
+/** How far, in millimetres, the system's footprint extends beyond the room walls. */
+export function roomBoundaryOverflow(plan: Plan, catalog: Catalog) {
+  const { width, depth } = plan.room
   return Math.max(
     0,
-    ...corners.flatMap((corner) => [
+    ...footprintCorners(plan, catalog).flatMap((corner) => [
       -corner.x,
-      corner.x - room.width,
+      corner.x - width,
       -corner.z,
-      corner.z - room.depth,
+      corner.z - depth,
     ]),
   )
+}
+
+/** A run within this distance of its wall's centre is held there. */
+const CENTRE_SNAP = 40
+
+/**
+ * Moves the run to the nearest position on its wall that keeps it inside the room, and holds
+ * it at the wall's centre when it is close. Wall-mounted runs keep their distance from the wall.
+ */
+export function fitPlacement(plan: Plan, catalog: Catalog): Plan {
+  const { side, front, back } = footprintExtent(plan, catalog)
+  const { offset, distance } = plan.system.placement
+  const free = wallLength(plan) - totalCentreWidth(plan)
+  const centred = Math.round(free / 2)
+  const clamp = (value: number, min: number, max: number) =>
+    Math.round(Math.min(Math.max(value, min), Math.max(min, max)))
+
+  return setPlacement(plan, {
+    offset: Math.abs(offset - centred) < CENTRE_SNAP ? centred : clamp(offset, side, free - side),
+    distance: isWallMounted(plan.system.mountingType)
+      ? distance
+      : clamp(distance, back, acrossRoom(plan) - front),
+  })
 }

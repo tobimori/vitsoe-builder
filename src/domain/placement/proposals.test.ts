@@ -20,7 +20,7 @@ function freestanding(): Plan {
   const plan = copy()
   plan.system.mountingType = 'freestanding'
   plan.system.mountHeight = 205
-  plan.system.placement.z = 600
+  plan.system.placement.distance = 600
   return plan
 }
 
@@ -101,7 +101,7 @@ describe('placing new components', () => {
         plan.system.mountHeight = mountingType === 'wall' ? 345 : 205
         plan.system.bays = [{ id: 'empty', centreWidth }]
         plan.system.items = []
-        plan.system.placement.z = mountingType === 'wall' ? 0 : 600
+        plan.system.placement.distance = mountingType === 'wall' ? 0 : 600
 
         const item = findAvailablePlacement(plan, catalog, {
           id: 'table',

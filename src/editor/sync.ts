@@ -8,15 +8,12 @@ export function syncPlan() {
   let timer: number | undefined
 
   const write = (plan: Plan) => {
-    window.clearTimeout(timer)
-    timer = window.setTimeout(() => {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(plan))
-        editor.trigger.saved({ saved: true })
-      } catch {
-        editor.trigger.saved({ saved: false })
-      }
-    }, 250)
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(plan))
+      editor.trigger.saved({ saved: true })
+    } catch {
+      editor.trigger.saved({ saved: false })
+    }
 
     try {
       window.history.replaceState(
@@ -30,7 +27,15 @@ export function syncPlan() {
   }
 
   write(selectors.plan.get())
-  selectors.plan.subscribe(write)
+  // Drags and typing change the plan on every event; compressing and storing it each time stutters
+  selectors.plan.subscribe((plan) => {
+    window.clearTimeout(timer)
+    timer = window.setTimeout(() => write(plan), 250)
+  })
+  window.addEventListener('pagehide', () => {
+    window.clearTimeout(timer)
+    write(selectors.plan.get())
+  })
 
   window.addEventListener('hashchange', () => {
     const shared = decodePlanHash(window.location.hash, catalog)
