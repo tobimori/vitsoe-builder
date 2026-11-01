@@ -43,8 +43,8 @@ export default defineConfig(({ mode }) => ({
       check: 'vp check',
       test: 'vp test run',
       deploy: {
+        // Wrangler runs the build itself, from `build.command` in wrangler.jsonc
         command: 'wrangler deploy',
-        dependsOn: ['build'],
         cache: false,
       },
     },

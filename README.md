@@ -54,9 +54,11 @@ pnpm exec wrangler login
 vp run deploy
 ```
 
-Wrangler prints the public HTTPS URL after deployment. `vp run deploy` builds the
-app before uploading it. Cloudflare credentials, local Wrangler state, generated
-builds, and the `docs` reference folder are excluded from Git.
+Wrangler prints the public HTTPS URL after deployment. `wrangler deploy` builds the
+app before uploading it, so Cloudflare's Git builds need only the default deploy
+command, `npx wrangler deploy`. Pushes to `main` deploy automatically. Cloudflare
+credentials, local Wrangler state, generated builds, and the `docs` reference folder
+are excluded from Git.
 
 See [Cloudflare's static asset documentation](https://developers.cloudflare.com/workers/static-assets/).
 
