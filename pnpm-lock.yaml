@@ -147,6 +147,9 @@ importers:
       '@vitejs/plugin-react':
         specifier: latest
         version: 6.1.1(@voidzero-dev/vite-plus-core@0.3.1(esbuild@0.28.1)(typescript@7.0.2))
+      portless:
+        specifier: 0.15.12
+        version: 0.15.12
       typescript:
         specifier: latest
         version: 7.0.2
@@ -1696,6 +1699,12 @@ packages:
     resolution: {integrity: sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow==}
     engines: {node: '>=14.19.0'}
 
+  portless@0.15.12:
+    resolution: {integrity: sha512-Lbz85zLboOMkvq2unXYfJ/YMpsvFZYQgrwGEbinZErp045y9fLm4obm7E77V2BI2Om0Mh6tX/2w2ftFqRs5kfQ==}
+    engines: {node: '>=24'}
+    os: [darwin, linux, win32]
+    hasBin: true
+
   postcss@8.5.28:
     resolution: {integrity: sha512-RRuzqDtt5Y9h3quz5hWhK+TPnsmVs6WwSU6LkJMeY4HstUEDuYTG8UJSdawMRzmzAtV+KEoG8N3Qg2qLy5vM/A==}
     engines: {node: ^10 || ^12 || >=14}
@@ -3110,6 +3119,8 @@ snapshots:
   picomatch@4.0.7: {}
 
   pngjs@7.0.0: {}
+
+  portless@0.15.12: {}
 
   postcss@8.5.28:
     dependencies:

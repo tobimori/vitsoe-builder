@@ -1,8 +1,10 @@
 # Working on this project
 
-Use pnpm and Vite+. Keep development and preview servers bound to `0.0.0.0`.
-Start the development server when working on the app, keep it running, and give
-the user its Tailscale IP and port as soon as it is listening.
+Use pnpm and Vite+. Run project commands as Vite+ tasks, such as `vp run dev`.
+The dev and preview servers run through Portless. Start the development server
+when working on the app, keep it running, and give the user its Portless URL as
+soon as it is listening: `https://vitsoe.test`, or
+`https://<branch>.vitsoe.test` in a worktree.
 
 Use `agent-browser` for browser inspection and interaction checks.
 Keep browser sessions brief and close them after verification. Avoid parallel

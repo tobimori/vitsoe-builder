@@ -7,18 +7,25 @@ React, React Three Fiber, Three.js, Vite+, and pnpm.
 
 ```sh
 pnpm install
-pnpm dev
+vp run dev
 ```
 
-The development server binds to `0.0.0.0`, including the machine's Tailscale
-interface. Vite prints the available URLs at startup. Use `tailscale ip -4`
-to look up the Tailscale address.
+Project commands are Vite+ tasks in `vite.config.ts`. The dev and preview
+servers run through [Portless](https://github.com/vercel-labs/portless) at
+`https://vitsoe.test`. In a Git worktree, Portless adds the branch name as a
+subdomain, for example `https://my-branch.vitsoe.test`. Set `PORTLESS=0` to run
+Vite directly.
 
 ```sh
-pnpm check
-pnpm test
-pnpm build
+vp run check
+vp run test
+vp run build
+vp run preview
 ```
+
+`t3.json` configures T3 Code. New threads start in a worktree, and
+`scripts/setup-worktree.sh` installs dependencies and links the ignored `docs`
+reference folder from the main checkout.
 
 The preview renders on demand, caps device pixel ratio at 1.5, and requests the
 high-performance WebGL device. Camera movement and component edits request new
@@ -27,7 +34,7 @@ frames. Static views do not need a continuous animation loop.
 For brief automated browser checks on this Linux host, use GPU acceleration:
 
 ```sh
-pnpm dlx agent-browser --args '--enable-gpu,--use-angle=vulkan' open http://localhost:5173
+pnpm dlx agent-browser --args '--enable-gpu,--use-angle=vulkan' open https://vitsoe.test
 pnpm dlx agent-browser close
 ```
 
@@ -44,10 +51,10 @@ code or database is required.
 
 ```sh
 pnpm exec wrangler login
-pnpm run deploy
+vp run deploy
 ```
 
-Wrangler prints the public HTTPS URL after deployment. `pnpm run deploy` builds the
+Wrangler prints the public HTTPS URL after deployment. `vp run deploy` builds the
 app before uploading it. Cloudflare credentials, local Wrangler state, generated
 builds, and the `docs` reference folder are excluded from Git.
 

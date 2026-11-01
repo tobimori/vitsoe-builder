@@ -3,14 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "dev": "vp dev --host 0.0.0.0",
-    "build": "vp build",
-    "deploy": "pnpm build && wrangler deploy",
-    "test": "vp test run",
-    "check": "vp check",
-    "preview": "vp preview --host 0.0.0.0"
-  },
   "dependencies": {
     "@react-three/drei": "latest",
     "@react-three/fiber": "9.7.0",
@@ -25,6 +17,7 @@
     "@types/react-dom": "latest",
     "@types/three": "latest",
     "@vitejs/plugin-react": "latest",
+    "portless": "0.15.12",
     "typescript": "latest",
     "vite-plus": "0.3.1",
     "wrangler": "4.131.1"

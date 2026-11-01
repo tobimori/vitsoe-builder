@@ -13,4 +13,27 @@ export default defineConfig({
     semi: false,
     singleQuote: true,
   },
+  run: {
+    tasks: {
+      dev: {
+        command: 'portless run --name vitsoe vp dev',
+        cache: false,
+      },
+      preview: {
+        // Portless injects --port and --host only for `vp dev`
+        command:
+          "portless run --name vitsoe sh -c 'vp preview --port $PORT --strictPort --host $HOST'",
+        dependsOn: ['build'],
+        cache: false,
+      },
+      build: 'vp build',
+      check: 'vp check',
+      test: 'vp test run',
+      deploy: {
+        command: 'wrangler deploy',
+        dependsOn: ['build'],
+        cache: false,
+      },
+    },
+  },
 })
