@@ -4,23 +4,34 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@react-three/drei": "latest",
-    "@react-three/fiber": "9.7.0",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "three": "0.186.0",
-    "three-gpu-pathtracer": "0.0.24",
-    "three-mesh-bvh": "0.9.15"
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.2",
+    "@stylexjs/stylex": "0.19.1",
+    "@xstate/store": "4.3.0",
+    "@xstate/store-react": "2.1.0",
+    "react": "19.3.1",
+    "react-aria-components": "1.22.1",
+    "react-dom": "19.3.1",
+    "three": "0.187.0",
+    "three-gpu-pathtracer": "0.0.27",
+    "three-mesh-bvh": "0.9.17",
+    "valibot": "1.5.0"
   },
   "devDependencies": {
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "@types/three": "latest",
-    "@vitejs/plugin-react": "latest",
+    "@babel/core": "7.29.7",
+    "@rolldown/plugin-babel": "0.2.4",
+    "@stylexjs/unplugin": "0.19.1",
+    "@types/babel__core": "7.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/three": "0.187.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "babel-plugin-react-compiler": "1.0.0",
     "portless": "0.15.12",
-    "typescript": "latest",
-    "vite-plus": "0.3.1",
-    "wrangler": "4.131.1"
+    "typescript": "7.0.2",
+    "unplugin": "2.3.11",
+    "vite-plus": "1.4.0",
+    "wrangler": "4.156.0"
   },
   "packageManager": "pnpm@12.3.1"
 }

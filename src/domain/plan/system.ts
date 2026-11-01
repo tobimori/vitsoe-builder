@@ -1,0 +1,183 @@
+import type { Catalog } from '../catalog/catalog'
+import { isIntegratedTable } from '../catalog/families'
+import { structureRules } from '../catalog/structure'
+import type { CatalogProduct, ProductVariant } from '../catalog/types'
+import type { BayWidth, Face, Millimetres, MountingType } from '../types'
+import type { Placement, Plan, PlanSystem, StructureOptions, SystemFinish } from './types'
+
+export function isTwoSided(mountingType: MountingType) {
+  return mountingType === 'freestanding' || mountingType === 'floor-to-ceiling'
+}
+
+export function isWallMounted(mountingType: MountingType) {
+  return mountingType === 'wall' || mountingType === 'semi-wall'
+}
+
+export function allowedFaces(plan: Plan): Face[] {
+  return isTwoSided(plan.system.mountingType) ? ['front', 'back'] : ['front']
+}
+
+/** Rotated by 90° or 270°, the run follows the left wall instead of the back wall. */
+export function runsAlongZ(placement: Placement) {
+  return placement.rotation === 90 || placement.rotation === 270
+}
+
+export function totalCentreWidth(plan: Plan) {
+  return plan.system.bays.reduce((sum, bay) => sum + bay.centreWidth, 0)
+}
+
+export function sideClearance(mountingType: MountingType) {
+  return structureRules[mountingType].sideClearance
+}
+
+/** Integrated table legs stand on the floor and fix the installation height. */
+export function hasIntegratedTable(plan: Plan) {
+  return plan.system.items.some((item) => isIntegratedTable(item.productId))
+}
+
+function withSystem(plan: Plan, patch: Partial<PlanSystem>): Plan {
+  return { ...plan, system: { ...plan.system, ...patch } }
+}
+
+/** The wall standoff of a semi-wall system is the reach of its brackets. */
+function bracketReach(options: StructureOptions) {
+  return (options.wallBracket === 'long' ? 110 : 70) + (options.extensionBolts ? 65 : 0)
+}
+
+function withWallDistance(placement: Placement, distance: Millimetres): Placement {
+  return runsAlongZ(placement) ? { ...placement, x: distance } : { ...placement, z: distance }
+}
+
+export function changeMountingType(plan: Plan, mountingType: MountingType): Plan {
+  const { system } = plan
+  if (mountingType === system.mountingType) return plan
+
+  const placement =
+    mountingType === 'wall'
+      ? withWallDistance(system.placement, 0)
+      : mountingType === 'semi-wall'
+        ? withWallDistance(system.placement, 70)
+        : { ...system.placement, z: Math.max(600, system.placement.z) }
+
+  return withSystem(plan, {
+    mountingType,
+    mountHeight: structureRules[mountingType].normalTrackBaseline,
+    placement,
+    items: isTwoSided(mountingType)
+      ? system.items
+      : system.items.map((item) => (item.face === 'front' ? item : { ...item, face: 'front' })),
+  })
+}
+
+export function setStructureOptions(plan: Plan, patch: Partial<StructureOptions>): Plan {
+  const structureOptions = { ...plan.system.structureOptions, ...patch }
+  const placement =
+    plan.system.mountingType === 'semi-wall'
+      ? withWallDistance(plan.system.placement, bracketReach(structureOptions))
+      : plan.system.placement
+
+  return withSystem(plan, { structureOptions, placement })
+}
+
+export function setPlacement(plan: Plan, patch: Partial<Placement>): Plan {
+  return withSystem(plan, { placement: { ...plan.system.placement, ...patch } })
+}
+
+export function setSystemFinish(plan: Plan, finish: SystemFinish): Plan {
+  return withSystem(plan, { finish })
+}
+
+/** Moves the track bottom and every component with it, unless table legs fix the height. */
+export function setMountHeight(plan: Plan, mountHeight: Millimetres): Plan {
+  if (hasIntegratedTable(plan)) return plan
+
+  const delta = mountHeight - plan.system.mountHeight
+  return withSystem(plan, {
+    mountHeight,
+    items: plan.system.items.map((item) => ({ ...item, height: item.height + delta })),
+  })
+}
+
+export function resetItemFinishes(plan: Plan): Plan {
+  return withSystem(plan, {
+    items: plan.system.items.map((item) => ({ ...item, finish: 'system', frontFinish: undefined })),
+  })
+}
+
+export function addBay(plan: Plan, id: string): Plan {
+  return withSystem(plan, { bays: [...plan.system.bays, { id, centreWidth: 667 }] })
+}
+
+export function removeBay(plan: Plan, index: number): Plan {
+  if (plan.system.bays.length === 1) return plan
+
+  return withSystem(plan, {
+    bays: plan.system.bays.filter((_, bayIndex) => bayIndex !== index),
+    items: plan.system.items
+      .filter((item) => item.bayIndex !== index)
+      .map((item) => (item.bayIndex > index ? { ...item, bayIndex: item.bayIndex - 1 } : item)),
+  })
+}
+
+export type BayResizeResult =
+  | { ok: true; plan: Plan }
+  | { ok: false; message: string; itemIds: string[] }
+
+function replacementVariant(product: CatalogProduct, current: ProductVariant, width: BayWidth) {
+  if (!current.bayCentres?.length || current.bayCentres.includes(width)) return current
+
+  const matches = product.variants.filter(
+    (variant) =>
+      variant.bayCentres?.includes(width) &&
+      variant.depth === current.depth &&
+      variant.height === current.height,
+  )
+  return matches.length === 1 ? matches[0] : undefined
+}
+
+/** Resizes a bay and swaps every width-specific component in it as one change. */
+export function resizeBay(
+  plan: Plan,
+  catalog: Catalog,
+  bayIndex: number,
+  centreWidth: BayWidth,
+): BayResizeResult {
+  const bay = plan.system.bays[bayIndex]
+  if (!bay) return { ok: false, message: 'That bay no longer exists.', itemIds: [] }
+  if (bay.centreWidth === centreWidth) return { ok: true, plan }
+
+  const replacements = new Map<string, string>()
+  const missing: { id: string; name: string }[] = []
+
+  for (const item of plan.system.items) {
+    if (item.bayIndex !== bayIndex) continue
+
+    const product = catalog.product(item.productId)
+    const variant = catalog.variant(item.productId, item.variantId)
+    const replacement = product && variant && replacementVariant(product, variant, centreWidth)
+    if (replacement) replacements.set(item.id, replacement.id)
+    else missing.push({ id: item.id, name: product?.name ?? 'Component' })
+  }
+
+  if (missing.length) {
+    const names = [...new Set(missing.map((entry) => entry.name))].join(', ')
+    return {
+      ok: false,
+      message: `${names} ${missing.length === 1 ? 'has' : 'have'} no matching ${centreWidth} mm version.`,
+      itemIds: missing.map((entry) => entry.id),
+    }
+  }
+
+  return {
+    ok: true,
+    plan: withSystem(plan, {
+      bays: plan.system.bays.map((entry, index) =>
+        index === bayIndex ? { ...entry, centreWidth } : entry,
+      ),
+      items: plan.system.items.map((item) => {
+        const variantId = replacements.get(item.id)
+        return variantId && variantId !== item.variantId ? { ...item, variantId } : item
+      }),
+    }),
+  }
+}

@@ -1,18 +1,31 @@
+import babel from '@rolldown/plugin-babel'
+import stylex from '@stylexjs/unplugin'
+import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import { defineConfig } from 'vite-plus'
-import react from '@vitejs/plugin-react'
 
-export default defineConfig({
-  plugins: [react()],
+export default defineConfig(({ mode }) => ({
+  // The StyleX dev server keeps a polling interval open, so Vitest never exits
+  plugins:
+    mode === 'test' ? [] : [stylex.vite(), react(), babel({ presets: [reactCompilerPreset()] })],
+
   test: {
-    include: ['tests/**/*.test.ts'],
+    include: ['src/**/*.test.ts'],
   },
+
   lint: {
     ignorePatterns: ['dist/**'],
+    plugins: ['typescript', 'react', 'unicorn', 'oxc'],
+    options: {
+      typeAware: true,
+      typeCheck: true,
+    },
   },
+
   fmt: {
     semi: false,
     singleQuote: true,
   },
+
   run: {
     tasks: {
       dev: {
@@ -36,4 +49,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))
