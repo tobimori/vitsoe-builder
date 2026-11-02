@@ -44,7 +44,7 @@ export function DrawingView({
   focus,
 }: {
   assembly: THREE.Group
-  selected: THREE.Object3D | undefined
+  selected: THREE.Object3D[]
   hovered: THREE.Object3D | undefined
   dragging: boolean
   /** The component to zoom to; a new object each time it is requested. */
@@ -102,7 +102,7 @@ export function DrawingView({
   useLayoutEffect(() => {
     paint(assembly, inks.plain)
     paint(hovered, inks.hovered)
-    paint(selected, inks.selected)
+    for (const object of selected) paint(object, inks.selected)
     invalidate()
   }, [assembly, face, wall, selected, hovered, inks, invalidate])
 

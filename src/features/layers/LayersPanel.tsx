@@ -15,7 +15,7 @@ import { allowedFaces } from '../../domain/plan/system'
 import type { Plan, PlanItem } from '../../domain/plan/types'
 import type { Face } from '../../domain/types'
 import { editor, useEditor, usePlan } from '../../editor/editor'
-import type { Selection } from '../../editor/store'
+import { selectedIds, type Selection } from '../../editor/store'
 import { ActionButton } from '../../ui/buttons'
 import { Icon, type IconName } from '../../ui/icons'
 import { text } from '../../ui/text'
@@ -27,7 +27,7 @@ interface Layer {
   icon: IconName
   measure?: number
   /** What selecting the layer selects; sides, bays and the supports only group layers. */
-  selection?: NonNullable<Selection>
+  selection?: { type: 'item'; id: string } | { type: 'support'; index: number }
   children: Layer[]
 }
 
@@ -101,10 +101,8 @@ function planLayers(plan: Plan): Layer[] {
   ]
 }
 
-function selectedKey(selection: Selection) {
-  if (selection?.type === 'item') return selection.id
-  if (selection?.type === 'support') return supportKey(selection.index)
-  return null
+function selectedKeys(selection: Selection) {
+  return selection?.type === 'support' ? [supportKey(selection.index)] : selectedIds(selection)
 }
 
 /** The groups that contain the layer with this key, outermost first. */
@@ -262,19 +260,20 @@ export function LayersPanel() {
   const plan = usePlan()
   const selection = useEditor((context) => context.selection)
   const layers = planLayers(plan)
-  const selected = selectedKey(selection)
+  const selected = selectedKeys(selection)
+  const latest = selected.at(-1) ?? null
   const [collapsed, setCollapsed] = useState<ReadonlySet<Key>>(() => new Set([SUPPORTS]))
-  const [revealed, setRevealed] = useState(selected)
+  const [revealed, setRevealed] = useState(latest)
 
   // A selection made in the view opens the groups around it
-  if (selected !== revealed) {
-    setRevealed(selected)
-    const path = pathTo(layers, selected)
+  if (latest !== revealed) {
+    setRevealed(latest)
+    const path = pathTo(layers, latest)
     if (path.some((key) => collapsed.has(key)))
       setCollapsed(new Set([...collapsed].filter((key) => !path.includes(key as string))))
   }
 
-  const around = pathTo(layers, selected)
+  const around = new Set(selected.flatMap((key) => pathTo(layers, key)))
   const all = flatten(layers)
   const groups = all.filter((layer) => layer.children.length > 0).map((layer) => layer.id)
   const toggle = (key: Key) =>
@@ -300,18 +299,20 @@ export function LayersPanel() {
       <Tree
         aria-label="Layers"
         items={layers}
-        selectionMode="single"
+        selectionMode="multiple"
         selectionBehavior="replace"
         disabledBehavior="selection"
         disabledKeys={all.filter((layer) => !layer.selection).map((layer) => layer.id)}
-        selectedKeys={selected === null ? [] : [selected]}
+        selectedKeys={selected}
         expandedKeys={groups.filter((key) => !collapsed.has(key))}
         onExpandedChange={(keys) => setCollapsed(new Set(groups.filter((key) => !keys.has(key))))}
         onSelectionChange={(keys) => {
-          const [key] = keys === 'all' ? [] : [...keys]
-          const target = all.find((layer) => layer.id === key)?.selection
-          if (target?.type === 'item') editor.trigger.selectItem({ id: target.id })
-          else if (target?.type === 'support') editor.trigger.selectSupport({ index: target.index })
+          if (keys === 'all') return editor.trigger.selectAll()
+          const targets = [...keys].map((key) => all.find((layer) => layer.id === key)?.selection)
+          const ids = targets.flatMap((target) => (target?.type === 'item' ? [target.id] : []))
+          const support = targets.find((target) => target?.type === 'support')
+          if (ids.length > 0) editor.trigger.selectItems({ ids })
+          else if (support) editor.trigger.selectSupport({ index: support.index })
           else editor.trigger.clearSelection()
         }}
         onAction={(key) => {
@@ -326,11 +327,7 @@ export function LayersPanel() {
             <TreeItem id={layer.id} textValue={layer.name} {...stylex.props(styles.item)}>
               <TreeItemContent>
                 {(state) => (
-                  <LayerRow
-                    layer={layer}
-                    state={state}
-                    holdsSelection={around.includes(layer.id)}
-                  />
+                  <LayerRow layer={layer} state={state} holdsSelection={around.has(layer.id)} />
                 )}
               </TreeItemContent>
               <Collection items={layer.children}>{renderLayer}</Collection>

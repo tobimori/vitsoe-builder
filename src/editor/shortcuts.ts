@@ -25,6 +25,7 @@ export function bindShortcuts() {
     const key = event.key.toLowerCase()
     const modifier = event.metaKey || event.ctrlKey
     const itemSelected = selection?.type === 'item'
+    const itemsSelected = itemSelected || selection?.type === 'items'
     // Arrow keys belong to focused controls such as tabs and segmented buttons
     const onStage = target === document.body || target instanceof HTMLCanvasElement
     const nudge = nudges[event.key]
@@ -36,10 +37,22 @@ export function bindShortcuts() {
     } else if (event.ctrlKey && key === 'y') {
       event.preventDefault()
       editor.trigger.redo()
-    } else if (modifier && key === 'd' && itemSelected) {
+    } else if (modifier && key === 'a') {
+      event.preventDefault()
+      editor.trigger.selectAll()
+    } else if (modifier && key === 'c' && itemsSelected) {
+      event.preventDefault()
+      editor.trigger.copySelected()
+    } else if (modifier && key === 'x' && itemsSelected) {
+      event.preventDefault()
+      editor.trigger.cutSelected()
+    } else if (modifier && key === 'v') {
+      event.preventDefault()
+      editor.trigger.paste()
+    } else if (modifier && key === 'd' && itemsSelected) {
       event.preventDefault()
       editor.trigger.duplicateSelected()
-    } else if ((key === 'delete' || key === 'backspace') && itemSelected) {
+    } else if ((key === 'delete' || key === 'backspace') && itemsSelected) {
       event.preventDefault()
       editor.trigger.deleteSelected()
     } else if (nudge && itemSelected && onStage && !modifier) {

@@ -4,7 +4,7 @@ import { Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { editor, selectors, useEditor } from '../editor/editor'
 import type { Plan } from '../domain/plan/types'
-import type { Selection } from '../editor/store'
+import { selectedIds, type Selection } from '../editor/store'
 import { DrawingView } from './drawing/DrawingView'
 import { castRay, ObliqueCamera } from './drawing/ObliqueCamera'
 import { GapGuides, ItemGuides, RunGuides } from './interaction/DragGuides'
@@ -120,8 +120,12 @@ function Workspace() {
   useEffect(() => () => disposeAssembly(assembly), [assembly])
 
   const selected = part(assembly, selection)
+  const ids = selectedIds(selection)
+  const selectedParts = selected
+    ? [selected]
+    : assembly.children.filter((child) => ids.includes(child.userData.itemId as string))
   const hover = drag.dragging || placing ? undefined : part(assembly, drag.hover)
-  const hovered = hover === selected ? undefined : hover
+  const hovered = hover && selectedParts.includes(hover) ? undefined : hover
 
   const { centre, rotation } = runAxes(plan)
   const { x, z } = centre
@@ -199,16 +203,16 @@ function Workspace() {
         (drawing ? (
           <DrawingView
             assembly={assembly}
-            selected={selected}
+            selected={selectedParts}
             hovered={hovered}
             dragging={drag.dragging}
             focus={focus}
           />
         ) : (
           <>
-            {selected && (
-              <SelectionOutline key={selected.uuid} object={selected} colour="#0073b1" />
-            )}
+            {selectedParts.map((object) => (
+              <SelectionOutline key={object.uuid} object={object} colour="#0073b1" />
+            ))}
             {hovered && <SelectionOutline key={hovered.uuid} object={hovered} colour="#7ab0d0" />}
             <CameraRig assembly={assembly} dragging={drag.dragging} focus={focus} />
           </>

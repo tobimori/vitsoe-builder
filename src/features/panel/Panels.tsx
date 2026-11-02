@@ -4,7 +4,7 @@ import { Button, Input, TextField } from 'react-aria-components'
 import type { ReactNode } from 'react'
 import { partsTotal } from '../../domain/pricing/parts'
 import { editor, editPlan, selectors, useEditor, usePlan } from '../../editor/editor'
-import type { Tab } from '../../editor/store'
+import { selectedIds, type Tab } from '../../editor/store'
 import { ActionButton, IconButton } from '../../ui/buttons'
 import { formatPrice, plural } from '../../ui/format'
 import { Icon } from '../../ui/icons'
@@ -333,9 +333,9 @@ function TabContent({ tab, lead }: { tab: Tab; lead?: ReactNode }) {
   const key =
     tab !== 'details' || !selection
       ? tab
-      : selection.type === 'item'
-        ? selection.id
-        : `support-${selection.index}`
+      : selection.type === 'support'
+        ? `support-${selection.index}`
+        : selectedIds(selection).join(' ')
 
   return (
     <div key={key} {...stylex.props(styles.scroll)}>

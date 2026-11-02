@@ -1,5 +1,6 @@
 import { useEditor, useSelectedItem } from '../../editor/editor'
 import { ItemInspector } from '../inspector/ItemInspector'
+import { SelectionInspector } from '../inspector/SelectionInspector'
 import { SupportInspector } from '../inspector/SupportInspector'
 import { PositionSection, RoomSection } from '../room/RoomSections'
 import { BaySection } from '../system/BaySection'
@@ -14,6 +15,7 @@ export function DetailsPanel() {
   const item = useSelectedItem()
 
   if (item) return <ItemInspector item={item} />
+  if (selection?.type === 'items') return <SelectionInspector ids={selection.ids} />
   if (selection?.type === 'support') return <SupportInspector supportIndex={selection.index} />
 
   return (

@@ -3,7 +3,7 @@ import { isIntegratedTable } from '../catalog/families'
 import { structureRules } from '../catalog/structure'
 import type { CatalogProduct, ProductVariant } from '../catalog/types'
 import type { BayWidth, Face, Millimetres, MountingType } from '../types'
-import type { Placement, Plan, PlanSystem, StructureOptions, SystemFinish } from './types'
+import type { Placement, Plan, PlanItem, PlanSystem, StructureOptions, SystemFinish } from './types'
 
 export function isTwoSided(mountingType: MountingType) {
   return mountingType === 'freestanding' || mountingType === 'floor-to-ceiling'
@@ -15,6 +15,15 @@ export function isWallMounted(mountingType: MountingType) {
 
 export function allowedFaces(plan: Plan): Face[] {
   return isTwoSided(plan.system.mountingType) ? ['front', 'back'] : ['front']
+}
+
+/** The face a component can move to on a two-sided system; accessories go with their host. */
+export function otherFace(plan: Plan, catalog: Catalog, item: PlanItem): Face | undefined {
+  const face = item.face === 'front' ? 'back' : 'front'
+  const variant = catalog.variant(item.productId, item.variantId)
+  return !item.parentItemId && allowedFaces(plan).includes(face) && variant?.faces.includes(face)
+    ? face
+    : undefined
 }
 
 export function totalCentreWidth(plan: Plan) {

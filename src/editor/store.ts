@@ -10,6 +10,7 @@ import {
   proposeItemMove,
 } from '../domain/placement/proposals'
 import { BOOKEND_STEP, bookendPosition, slidesOnHost } from '../domain/placement/bookends'
+import { pasteItems } from '../domain/placement/paste'
 import { snapPinHeight } from '../domain/placement/grid'
 import { initialPlan } from '../domain/plan/defaults'
 import { allowedFaces, changeMountingType } from '../domain/plan/system'
@@ -21,6 +22,7 @@ import { proposeSupportRunMove, type SupportRunMove } from '../domain/supports/r
 import { deriveSupportTrackPlans } from '../domain/supports/tracks'
 import type { Face, MountingType } from '../domain/types'
 import { validatePlan } from '../domain/validation/validate'
+import { plural } from '../ui/format'
 import {
   commitHistory,
   createHistory,
@@ -29,7 +31,23 @@ import {
   type HistoryState,
 } from './history'
 
-export type Selection = { type: 'item'; id: string } | { type: 'support'; index: number } | null
+export type Selection =
+  | { type: 'item'; id: string }
+  /** Two or more components. */
+  | { type: 'items'; ids: string[] }
+  | { type: 'support'; index: number }
+  | null
+
+export function selectedIds(selection: Selection): string[] {
+  if (selection?.type === 'item') return [selection.id]
+  return selection?.type === 'items' ? selection.ids : []
+}
+
+function itemSelection(ids: readonly string[]): Selection {
+  const [first, ...rest] = [...new Set(ids)]
+  if (first === undefined) return null
+  return rest.length === 0 ? { type: 'item', id: first } : { type: 'items', ids: [first, ...rest] }
+}
 
 /**
  * A free 3D view, a straight elevation of the active face, or a fixed line drawing
@@ -73,6 +91,8 @@ export interface EditorContext {
   /** The tab chosen last; a phone shows one panel at a time. */
   tab: Tab
   notice: string | null
+  /** Copied components with their accessories, as they were when copied. */
+  clipboard: PlanItem[]
   saved: boolean
 }
 
@@ -93,6 +113,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
     rightTab: 'details',
     tab: 'details',
     notice,
+    clipboard: [],
     saved: false,
   }
 
@@ -112,6 +133,44 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
   const selectedItem = ({ selection, history }: EditorContext) => {
     if (selection?.type !== 'item') return undefined
     return history.present.system.items.find((item) => item.id === selection.id)
+  }
+
+  /** The selected components with every accessory attached to them. */
+  const selectedTrees = ({ selection, history }: EditorContext) => {
+    const { items } = history.present.system
+    const ids = new Set(selectedIds(selection).flatMap((id) => [...itemTreeIds(items, id)]))
+    return items.filter((item) => ids.has(item.id))
+  }
+
+  function paste(state: EditorContext, items: readonly PlanItem[]): EditorContext {
+    const result = pasteItems(state.history.present, catalog, items, state.activeFace, () =>
+      makeId('item'),
+    )
+    if (result.ids.length === 0) return notify(state, 'There is no clear space for that copy.')
+
+    const next = {
+      ...withTab(commit(state, result.plan), 'details'),
+      selection: itemSelection(result.ids),
+    }
+    return result.missed > 0
+      ? notify(next, `There was no clear space for ${plural(result.missed, 'component')}.`)
+      : next
+  }
+
+  function removeItems(state: EditorContext, ids: readonly string[]): EditorContext {
+    const plan = state.history.present
+    const removed = new Set(ids.flatMap((id) => [...itemTreeIds(plan.system.items, id)]))
+    if (removed.size === 0) return state
+    return {
+      ...commit(state, {
+        ...plan,
+        system: {
+          ...plan.system,
+          items: plan.system.items.filter((entry) => !removed.has(entry.id)),
+        },
+      }),
+      selection: null,
+    }
   }
 
   function moveItem(state: EditorContext, candidate: PlanItem): EditorContext {
@@ -256,6 +315,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
       },
 
       duplicateSelected: (state) => {
+        if (state.selection?.type === 'items') return paste(state, selectedTrees(state))
         const item = selectedItem(state)
         if (!item) return state
 
@@ -267,22 +327,41 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
         return duplicateItem(state, { ...item, height })
       },
 
-      deleteSelected: (state) => {
-        const item = selectedItem(state)
-        if (!item) return state
+      deleteSelected: (state) => removeItems(state, selectedIds(state.selection)),
 
-        const plan = state.history.present
-        const removed = itemTreeIds(plan.system.items, item.id)
-        return {
-          ...commit(state, {
-            ...plan,
-            system: {
-              ...plan.system,
-              items: plan.system.items.filter((entry) => !removed.has(entry.id)),
-            },
-          }),
-          selection: null,
+      copySelected: (state) => {
+        const items = selectedTrees(state)
+        return items.length === 0 ? state : { ...state, clipboard: items }
+      },
+
+      cutSelected: (state) => {
+        const items = selectedTrees(state)
+        if (items.length === 0) return state
+        return { ...removeItems(state, selectedIds(state.selection)), clipboard: items }
+      },
+
+      paste: (state) => (state.clipboard.length === 0 ? state : paste(state, state.clipboard)),
+
+      /** Moves several components at once, as one step; the ones that do not fit stay. */
+      moveItems: (state, { items }: { items: PlanItem[] }, enqueue) => {
+        let plan = state.history.present
+        let missed = 0
+        for (const item of items) {
+          const proposal = proposeItemMove(plan, catalog, item)
+          if (proposal?.valid) plan = proposal.plan
+          else missed += 1
         }
+        if (missed === items.length) {
+          return notify(state, 'That position is outside the system or overlaps another component.')
+        }
+        // Moving everything to the other side turns the view with it
+        const [face, ...others] = new Set(items.map((item) => item.face))
+        const turned = face && others.length === 0 && face !== state.activeFace
+        if (turned) enqueue.emit.turnCamera({})
+        const next = { ...commit(state, plan), activeFace: turned ? face : state.activeFace }
+        return missed > 0
+          ? notify(next, `There was no clear space for ${plural(missed, 'component')}.`)
+          : next
       },
 
       addComponent: (state, { productId, variantId }: { productId: string; variantId: string }) => {
@@ -315,9 +394,30 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
           : notify(state, 'The connected support run does not fit in that position.')
       },
 
-      selectItem: (state, { id }: { id: string }) => ({
+      /** Selects a component; `extend` adds it to the selection, or takes it out again. */
+      selectItem: (state, { id, extend = false }: { id: string; extend?: boolean }) => {
+        const current = selectedIds(state.selection)
+        const ids = !extend
+          ? [id]
+          : current.includes(id)
+            ? current.filter((entry) => entry !== id)
+            : [...current, id]
+        return { ...withTab(state, 'details'), selection: itemSelection(ids), placing: null }
+      },
+
+      selectItems: (state, { ids }: { ids: string[] }) => ({
         ...withTab(state, 'details'),
-        selection: { type: 'item', id },
+        selection: itemSelection(ids),
+        placing: null,
+      }),
+
+      selectAll: (state) => ({
+        ...withTab(state, 'details'),
+        selection: itemSelection(
+          state.history.present.system.items
+            .filter((item) => !item.parentItemId)
+            .map((item) => item.id),
+        ),
         placing: null,
       }),
 

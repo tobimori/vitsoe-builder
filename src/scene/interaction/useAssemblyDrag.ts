@@ -398,6 +398,11 @@ export function useAssemblyDrag({
   }
 
   function startItemDrag(event: ThreeEvent<PointerEvent>, id: string, group: THREE.Group) {
+    // Shift or Cmd adds the component to the selection, or takes it out, as in Figma
+    if (event.shiftKey || event.metaKey || event.ctrlKey) {
+      editor.trigger.selectItem({ id, extend: true })
+      return
+    }
     editor.trigger.selectItem({ id })
 
     const item = plan.system.items.find((candidate) => candidate.id === id)
