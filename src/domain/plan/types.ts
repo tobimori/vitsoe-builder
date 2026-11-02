@@ -59,6 +59,8 @@ export interface PlanItem {
   orientation?: ItemOrientation
   /** Accessories attach to this host component. */
   parentItemId?: string
+  /** Where a bookend stands along its shelf, from the shelf's centre. */
+  offset?: Millimetres
   open?: boolean
 }
 

@@ -2,6 +2,7 @@ import type { Catalog } from '../catalog/catalog'
 import { isAccessory } from '../catalog/catalog'
 import type { CatalogProduct, ProductVariant } from '../catalog/types'
 import { itemsCollide, verticalEnvelope } from '../placement/envelope'
+import { bookendPosition, slidesOnHost } from '../placement/bookends'
 import { BAY_USABLE_WIDTH, carrierHeight } from '../placement/grid'
 import { resolveItemFinish } from '../plan/finish'
 import { allowedFaces, isWallMounted, wallTieDistance } from '../plan/system'
@@ -271,9 +272,31 @@ function componentIssues(context: Context, component: PlacedComponent): Validati
   return issues
 }
 
-function collisionIssues({ plan }: Context, components: PlacedComponent[]): ValidationIssue[] {
+function collisionIssues(
+  { plan, catalog }: Context,
+  components: PlacedComponent[],
+): ValidationIssue[] {
   const issues: ValidationIssue[] = []
   const hosted = components.filter(({ item }) => !item.parentItemId)
+  const bookends = components.flatMap(({ item, variant }) => {
+    const position = slidesOnHost(item.productId)
+      ? bookendPosition(plan.system.items, catalog, item)
+      : undefined
+    return position ? [{ item, width: variant.width, offset: position.offset }] : []
+  })
+
+  bookends.forEach((a, index) => {
+    for (const b of bookends.slice(index + 1)) {
+      if (
+        a.item.parentItemId === b.item.parentItemId &&
+        Math.abs(a.offset - b.offset) < (a.width + b.width) / 2
+      ) {
+        issues.push(
+          error('item-collision', 'Two bookends stand in the same place.', [a.item.id, b.item.id]),
+        )
+      }
+    }
+  })
 
   hosted.forEach((a, index) => {
     for (const b of hosted.slice(index + 1)) {

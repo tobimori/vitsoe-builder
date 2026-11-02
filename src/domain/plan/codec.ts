@@ -20,6 +20,7 @@ const item = v.object({
   frontFinish: v.optional(colour),
   orientation: v.optional(v.picklist(['standard', 'inverted', 'vertical'])),
   parentItemId: v.optional(v.string()),
+  offset: v.optional(whole(-1000, 1000)),
   open: v.optional(v.boolean()),
 })
 

@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { catalog } from '../../domain/catalog/catalog'
 import { sizedForBay } from '../../domain/catalog/options'
 import { isIntegratedTable } from '../../domain/catalog/families'
+import { bookendPosition, slidesOnHost } from '../../domain/placement/bookends'
 import { nearestFittingHeight, snapPinHeight } from '../../domain/placement/grid'
 import { proposeItemDuplicate, proposeItemMove } from '../../domain/placement/proposals'
 import {
@@ -19,7 +20,7 @@ import type { SupportTrackPlan } from '../../domain/supports/tracks'
 import type { Face } from '../../domain/types'
 import { editor } from '../../editor/editor'
 import type { DragStatus, Selection } from '../../editor/store'
-import { bayCentre, pinDepth } from '../models/assembly'
+import { bayCentre, pinDepth, poseAccessory } from '../models/assembly'
 import { mm } from '../models/primitives'
 import { runAxes } from '../view/axes'
 import { dragPreviewBounds, faceUnderPointer, makeDragGhost, setVisible, showFit } from './drag'
@@ -101,6 +102,27 @@ interface ItemDrag {
   published: DragStatus | null
 }
 
+/** A bookend sliding along its shelf, or onto another shelf of the same face. */
+interface BookendDrag {
+  item: PlanItem
+  /** Where it would land: on a shelf, at a distance from the shelf's centre. */
+  candidate: PlanItem
+  plane: THREE.Plane
+  /** Where the pointer holds the bookend, from its position within the run. */
+  grab: THREE.Vector3
+  /** How far the bookend's position is above its shelf's pin. */
+  rise: number
+  ghost: THREE.Group
+  landing: THREE.Vector3
+  original: THREE.Object3D
+  target: CaptureTarget
+  pointerId: number
+  startScreen: THREE.Vector2
+  moved: boolean
+  valid: boolean
+  duplicate: boolean
+}
+
 interface SupportDrag {
   plane: THREE.Plane
   startPoint: THREE.Vector3
@@ -156,6 +178,7 @@ export function useAssemblyDrag({
 }) {
   const invalidate = useThree((state) => state.invalidate)
   const itemDrag = useRef<ItemDrag | null>(null)
+  const bookendDrag = useRef<BookendDrag | null>(null)
   const supportDrag = useRef<SupportDrag | null>(null)
   const [dragging, setDragging] = useState(false)
   const [hover, setHover] = useState<Selection>(null)
@@ -174,9 +197,10 @@ export function useAssemblyDrag({
 
   // Glides the ghost between snapped positions instead of jumping
   useFrame((_, delta) => {
-    const current = itemDrag.current
+    const current = itemDrag.current ?? bookendDrag.current
     if (!current?.ghost.visible) return
-    const { ghost, landing, stretch } = current
+    const { ghost, landing } = current
+    const stretch = itemDrag.current?.stretch ?? 1
     if (ghost.position.distanceTo(landing) < 0.0002 && Math.abs(ghost.scale.x - stretch) < 0.001) {
       ghost.position.copy(landing)
       ghost.scale.x = stretch
@@ -263,14 +287,22 @@ export function useAssemblyDrag({
       setVisible(current.originals, true)
       releaseCapture(current.target, current.pointerId)
       if (commit && current.moved && current.valid) {
+        const { item, variantId, bayIndex, height, face, duplicate } = current
         editor.trigger.dropItem({
-          id: current.id,
-          variantId: current.variantId,
-          bayIndex: current.bayIndex,
-          height: current.height,
-          face: current.face,
-          duplicate: current.duplicate,
+          item: { ...item, variantId, bayIndex, height, face },
+          duplicate,
         })
+      }
+    }
+
+    const bookend = bookendDrag.current
+    bookendDrag.current = null
+    if (bookend) {
+      bookend.ghost.removeFromParent()
+      bookend.original.visible = true
+      releaseCapture(bookend.target, bookend.pointerId)
+      if (commit && bookend.moved && bookend.valid) {
+        editor.trigger.dropItem({ item: bookend.candidate, duplicate: bookend.duplicate })
       }
     }
 
@@ -325,12 +357,57 @@ export function useAssemblyDrag({
     setDragging(true)
   }
 
+  function startBookendDrag(
+    event: ThreeEvent<PointerEvent>,
+    item: PlanItem,
+    object: THREE.Object3D,
+    group: THREE.Group,
+  ) {
+    const host = plan.system.items.find((entry) => entry.id === item.parentItemId)
+    const normal = new THREE.Vector3(0, 0, 1).applyAxisAngle(up, rotation)
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
+      normal,
+      object.getWorldPosition(new THREE.Vector3()),
+    )
+    const startPoint = event.ray.intersectPlane(plane, new THREE.Vector3())
+    if (!host || !startPoint) return
+
+    const ghost = makeDragGhost(assembly, [item.id], object)
+    ghost.visible = false
+    group.add(ghost)
+
+    const target = event.target as CaptureTarget
+    bookendDrag.current = {
+      item,
+      candidate: item,
+      plane,
+      grab: group.worldToLocal(startPoint).sub(object.position),
+      rise: object.position.y - mm(host.height),
+      ghost,
+      landing: ghost.position.clone(),
+      original: object,
+      target,
+      pointerId: event.pointerId,
+      startScreen: new THREE.Vector2(event.clientX, event.clientY),
+      moved: false,
+      valid: true,
+      duplicate: event.altKey,
+    }
+    target.setPointerCapture(event.pointerId)
+    setDragging(true)
+  }
+
   function startItemDrag(event: ThreeEvent<PointerEvent>, id: string, group: THREE.Group) {
     editor.trigger.selectItem({ id })
 
     const item = plan.system.items.find((candidate) => candidate.id === id)
     const object = assembly.children.find((child) => child.userData.itemId === id)
     if (!item || !object) return
+    // Other accessories keep their place in their host
+    if (item.parentItemId) {
+      if (slidesOnHost(item.productId)) startBookendDrag(event, item, object, group)
+      return
+    }
 
     const normal = new THREE.Vector3(0, 0, 1).applyAxisAngle(up, rotation)
     const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(
@@ -442,6 +519,61 @@ export function useAssemblyDrag({
     invalidate()
   }
 
+  /** Slides a bookend along the shelf under the pointer, which can be another shelf. */
+  function moveBookend(event: ThreeEvent<PointerEvent>, current: BookendDrag, group: THREE.Group) {
+    event.stopPropagation()
+    const client = new THREE.Vector2(event.clientX, event.clientY)
+    if (!current.moved && client.distanceTo(current.startScreen) < 8) return
+    current.moved = true
+    current.duplicate = event.altKey
+
+    const point = event.ray.intersectPlane(current.plane, new THREE.Vector3())
+    if (!point) return
+    const at = group.worldToLocal(point).sub(current.grab)
+
+    const { item } = current
+    const hosts = catalog.product(item.productId)?.compatibleHosts ?? []
+    let nearest: { host: PlanItem; distance: number } | undefined
+    for (const host of plan.system.items) {
+      const width = catalog.variant(host.productId, host.variantId)?.width
+      if (!width || host.face !== item.face || host.orientation === 'vertical') continue
+      if (!hosts.includes(host.productId)) continue
+      const across = Math.max(0, Math.abs(at.x - bayCentre(plan, host.bayIndex)) - mm(width) / 2)
+      const distance = Math.hypot(across, at.y - mm(host.height) - current.rise)
+      if (!nearest || distance < nearest.distance) nearest = { host, distance }
+    }
+    const host = nearest?.host
+    const hostGroup = host && assembly.children.find((child) => child.userData.itemId === host.id)
+    if (!host || !hostGroup) return
+
+    // A back face's shelf is turned round, so its left end is at the run's right
+    const along = (at.x - bayCentre(plan, host.bayIndex)) * (host.face === 'back' ? -1 : 1)
+    const placed = {
+      ...item,
+      parentItemId: host.id,
+      bayIndex: host.bayIndex,
+      height: host.height,
+      offset: Math.round(along * 1000),
+    }
+    const items = plan.system.items.map((entry) => (entry.id === item.id ? placed : entry))
+    const position = bookendPosition(items, catalog, placed)
+    if (!position) return
+    current.candidate = { ...placed, offset: position.offset }
+
+    const propose = current.duplicate ? proposeItemDuplicate : proposeItemMove
+    current.valid = propose(plan, catalog, current.candidate)?.valid ?? false
+
+    const pose = new THREE.Object3D()
+    poseAccessory(pose, current.candidate, items, hostGroup, catalog)
+    current.landing.copy(pose.position)
+    if (!current.ghost.visible) current.ghost.position.copy(pose.position)
+    current.ghost.rotation.copy(pose.rotation)
+    current.ghost.visible = true
+    showFit(current.ghost, current.valid)
+    current.original.visible = current.duplicate
+    invalidate()
+  }
+
   /** Turns the view to the other face, where the drag goes on, after a short rest on its button. */
   function holdToTurn(current: ItemDrag, face: Face) {
     if (current.turnTimer !== undefined) return
@@ -527,12 +659,14 @@ export function useAssemblyDrag({
 
     const support = supportDrag.current
     const current = itemDrag.current
+    const bookend = bookendDrag.current
     if (support) moveSupportRun(event, support, group)
     else if (current && event.pointerId === current.pointerId) moveItem(event, current)
+    else if (bookend && event.pointerId === bookend.pointerId) moveBookend(event, bookend, group)
   }
 
   function onPointerUp(event: ThreeEvent<PointerEvent>) {
-    if (!itemDrag.current && !supportDrag.current) return
+    if (!itemDrag.current && !bookendDrag.current && !supportDrag.current) return
     event.stopPropagation()
 
     // Resolve the release point too, so a fast drop on a face button still lands on that face

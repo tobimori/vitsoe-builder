@@ -146,9 +146,11 @@ export function proposeItemDuplicate(
         bayIndex: root ? target.bayIndex : item.bayIndex + bayDelta,
         height: root ? target.height : item.height + heightDelta,
         face: target.face,
-        parentItemId: item.parentItemId
-          ? (copyIds.get(item.parentItemId) ?? item.parentItemId)
-          : undefined,
+        parentItemId: root
+          ? target.parentItemId
+          : item.parentItemId
+            ? (copyIds.get(item.parentItemId) ?? item.parentItemId)
+            : undefined,
       }
     })
 

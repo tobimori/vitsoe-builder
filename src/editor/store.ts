@@ -9,6 +9,7 @@ import {
   proposeItemDuplicate,
   proposeItemMove,
 } from '../domain/placement/proposals'
+import { BOOKEND_STEP, bookendPosition, slidesOnHost } from '../domain/placement/bookends'
 import { snapPinHeight } from '../domain/placement/grid'
 import { initialPlan } from '../domain/plan/defaults'
 import { allowedFaces, changeMountingType } from '../domain/plan/system'
@@ -128,6 +129,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
       moved.face !== original.face ||
       moved.orientation !== original.orientation ||
       moved.parentItemId !== original.parentItemId ||
+      moved.offset !== original.offset ||
       moved.open !== original.open
 
     if (spatialChange && !proposal.valid) {
@@ -218,29 +220,9 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
         return next
       },
 
-      dropItem: (
-        state,
-        drop: {
-          id: string
-          variantId: string
-          bayIndex: number
-          height: number
-          face: Face
-          duplicate: boolean
-        },
-        enqueue,
-      ) => {
-        const item = state.history.present.system.items.find((entry) => entry.id === drop.id)
-        if (!item) return state
-
-        const candidate = {
-          ...item,
-          variantId: drop.variantId,
-          bayIndex: drop.bayIndex,
-          height: drop.height,
-          face: drop.face,
-        }
-        const next = drop.duplicate ? duplicateItem(state, candidate) : moveItem(state, candidate)
+      /** Ends a drag: moves the component to the item's position, or copies it there. */
+      dropItem: (state, { item, duplicate }: { item: PlanItem; duplicate: boolean }, enqueue) => {
+        const next = duplicate ? duplicateItem(state, item) : moveItem(state, item)
         if (next.activeFace !== state.activeFace) enqueue.emit.turnCamera({})
         return next
       },
@@ -250,6 +232,17 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
         if (!item) return state
 
         const plan = state.history.present
+        // Accessories keep their place in their host, except bookends, which slide along it
+        if (item.parentItemId) {
+          const bookend =
+            slidesOnHost(item.productId) && bookendPosition(plan.system.items, catalog, item)
+          if (!bookend || bays === 0) return state
+          const offset = Math.min(
+            bookend.limit,
+            Math.max(-bookend.limit, bookend.offset + bays * BOOKEND_STEP),
+          )
+          return offset === bookend.offset ? state : moveItem(state, { ...item, offset })
+        }
         const bayIndex = Math.min(plan.system.bays.length - 1, Math.max(0, item.bayIndex + bays))
         if (bayIndex === item.bayIndex && pitches === 0) return state
         return moveItem(

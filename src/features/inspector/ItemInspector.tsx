@@ -1,6 +1,12 @@
 import * as stylex from '@stylexjs/stylex'
 import { catalog, priceForVariant } from '../../domain/catalog/catalog'
 import { hasFront, isIntegratedTable, orientationsFor } from '../../domain/catalog/families'
+import {
+  BOOKEND_CLEARANCE,
+  BOOKEND_STEP,
+  bookendPosition,
+  slidesOnHost,
+} from '../../domain/placement/bookends'
 import { VERTICAL_PITCH } from '../../domain/placement/grid'
 import { finishLabel, resolveItemFinish } from '../../domain/plan/finish'
 import { allowedFaces } from '../../domain/plan/system'
@@ -66,6 +72,7 @@ export function ItemInspector({ item }: { item: PlanItem }) {
     entry.compatibleHosts?.includes(item.productId),
   )
   const update = (next: PlanItem) => editor.trigger.updateItem({ item: next })
+  const bookend = slidesOnHost(item.productId) && bookendPosition(plan.system.items, catalog, item)
 
   const setFinish = (finish: Finish | 'system') => {
     const { frontFinish: _, ...rest } = item
@@ -107,47 +114,79 @@ export function ItemInspector({ item }: { item: PlanItem }) {
         }
       />
 
-      <Section title="Position">
-        <Rows>
-          {allowedFaces(plan).length > 1 && variant.faces.length > 1 && (
-            <FieldRow label="Face">
-              <Segmented
-                label="Face"
-                value={item.face}
-                options={faces}
-                onChange={(face) => update({ ...item, face })}
-              />
-            </FieldRow>
-          )}
-          <SelectField
-            label="Bay"
-            value={item.bayIndex}
-            options={plan.system.bays.map((bay, index) => ({
-              value: index,
-              label: `${index + 1} · ${bay.centreWidth} mm`,
-            }))}
-            onChange={(bayIndex) => update({ ...item, bayIndex })}
-          />
-          {isIntegratedTable(item.productId) ? (
-            <StaticField label="Tabletop height" value="740 mm" />
-          ) : (
+      {bookend && (
+        <Section title="Position">
+          <Rows>
             <NumberField
-              label="Height"
-              value={item.height}
-              min={plan.system.mountHeight % VERTICAL_PITCH}
-              max={plan.room.ceilingHeight}
-              step={VERTICAL_PITCH}
+              label="From the left"
+              value={bookend.offset + bookend.limit + BOOKEND_CLEARANCE}
+              // From 0, so typed values snap to round steps; the offset stays on the shelf
+              min={0}
+              max={bookend.limit * 2 + BOOKEND_CLEARANCE}
+              step={BOOKEND_STEP}
               stepper
-              onChange={(height) => update({ ...item, height })}
+              onChange={(distance) =>
+                update({
+                  ...item,
+                  offset: Math.max(
+                    -bookend.limit,
+                    Math.round(distance) - bookend.limit - BOOKEND_CLEARANCE,
+                  ),
+                })
+              }
             />
-          )}
-        </Rows>
-        <p {...stylex.props(text.hint)}>
-          {touchScreen
-            ? 'Drag it in the view, or choose a bay and height here.'
-            : 'Drag it in the view or use the arrow keys. Hold Alt while you drag to make a copy.'}
-        </p>
-      </Section>
+          </Rows>
+          <p {...stylex.props(text.hint)}>
+            {touchScreen
+              ? 'Drag it along its shelf, or onto another shelf.'
+              : 'Drag it along its shelf or onto another shelf, or use the left and right arrow keys. Hold Alt while you drag to make a copy.'}
+          </p>
+        </Section>
+      )}
+
+      {!item.parentItemId && (
+        <Section title="Position">
+          <Rows>
+            {allowedFaces(plan).length > 1 && variant.faces.length > 1 && (
+              <FieldRow label="Face">
+                <Segmented
+                  label="Face"
+                  value={item.face}
+                  options={faces}
+                  onChange={(face) => update({ ...item, face })}
+                />
+              </FieldRow>
+            )}
+            <SelectField
+              label="Bay"
+              value={item.bayIndex}
+              options={plan.system.bays.map((bay, index) => ({
+                value: index,
+                label: `${index + 1} · ${bay.centreWidth} mm`,
+              }))}
+              onChange={(bayIndex) => update({ ...item, bayIndex })}
+            />
+            {isIntegratedTable(item.productId) ? (
+              <StaticField label="Tabletop height" value="740 mm" />
+            ) : (
+              <NumberField
+                label="Height"
+                value={item.height}
+                min={plan.system.mountHeight % VERTICAL_PITCH}
+                max={plan.room.ceilingHeight}
+                step={VERTICAL_PITCH}
+                stepper
+                onChange={(height) => update({ ...item, height })}
+              />
+            )}
+          </Rows>
+          <p {...stylex.props(text.hint)}>
+            {touchScreen
+              ? 'Drag it in the view, or choose a bay and height here.'
+              : 'Drag it in the view or use the arrow keys. Hold Alt while you drag to make a copy.'}
+          </p>
+        </Section>
+      )}
 
       <Section title="Options">
         <Rows>
