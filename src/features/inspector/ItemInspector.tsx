@@ -9,7 +9,7 @@ import {
 } from '../../domain/placement/bookends'
 import { VERTICAL_PITCH } from '../../domain/placement/grid'
 import { finishLabel, resolveItemFinish } from '../../domain/plan/finish'
-import { allowedFaces } from '../../domain/plan/system'
+import { allowedFaces, otherFace } from '../../domain/plan/system'
 import type { PlanItem } from '../../domain/plan/types'
 import type { Colour, Finish, ItemOrientation } from '../../domain/types'
 import { editor, usePlan } from '../../editor/editor'
@@ -72,6 +72,7 @@ export function ItemInspector({ item }: { item: PlanItem }) {
     entry.compatibleHosts?.includes(item.productId),
   )
   const update = (next: PlanItem) => editor.trigger.updateItem({ item: next })
+  const turnTo = otherFace(plan, catalog, item)
   const bookend = slidesOnHost(item.productId) && bookendPosition(plan.system.items, catalog, item)
 
   const setFinish = (finish: Finish | 'system') => {
@@ -96,6 +97,11 @@ export function ItemInspector({ item }: { item: PlanItem }) {
         aside={formatPrice(priceForVariant(variant, resolved.finish))}
         actions={
           <>
+            {turnTo && (
+              <ActionButton variant="link" onPress={() => update({ ...item, face: turnTo })}>
+                Move to {turnTo}
+              </ActionButton>
+            )}
             <ActionButton
               variant="link"
               aria-keyshortcuts="Control+D Meta+D"

@@ -180,6 +180,8 @@ export function useAssemblyDrag({
   const itemDrag = useRef<ItemDrag | null>(null)
   const bookendDrag = useRef<BookendDrag | null>(null)
   const supportDrag = useRef<SupportDrag | null>(null)
+  /** A right press on a component, which opens its menu unless it pans the view. */
+  const menuPress = useRef<{ id: string; x: number; y: number } | null>(null)
   const [dragging, setDragging] = useState(false)
   const [hover, setHover] = useState<Selection>(null)
   const [itemPreview, setItemPreview] = useState<ItemPreview | null>(null)
@@ -468,8 +470,16 @@ export function useAssemblyDrag({
   }
 
   function onPointerDown(event: ThreeEvent<PointerEvent>) {
+    if (event.button === 2) {
+      event.stopPropagation()
+      const id = event.object.userData.itemId as string | undefined
+      menuPress.current = id ? { id, x: event.clientX, y: event.clientY } : null
+      return
+    }
+
     const group = placement.current
-    if (!group || event.button !== 0 || itemDrag.current || supportDrag.current) return
+    if (!group || event.button !== 0) return
+    if (itemDrag.current || bookendDrag.current || supportDrag.current) return
     if (editor.getSnapshot().context.placing) return
     // The closest visible surface owns the click, including the rear face
     event.stopPropagation()
@@ -671,6 +681,16 @@ export function useAssemblyDrag({
   }
 
   function onPointerUp(event: ThreeEvent<PointerEvent>) {
+    const press = menuPress.current
+    if (event.button === 2 && press) {
+      event.stopPropagation()
+      menuPress.current = null
+      if (Math.hypot(event.clientX - press.x, event.clientY - press.y) < 5) {
+        editor.trigger.openItemMenu(press)
+      }
+      return
+    }
+
     if (!itemDrag.current && !bookendDrag.current && !supportDrag.current) return
     event.stopPropagation()
 

@@ -91,6 +91,8 @@ export interface EditorContext {
   /** The tab chosen last; a phone shows one panel at a time. */
   tab: Tab
   notice: string | null
+  /** The selected component's menu in the view, at a point on the screen. */
+  menu: { x: number; y: number } | null
   /** Copied components with their accessories, as they were when copied. */
   clipboard: PlanItem[]
   saved: boolean
@@ -113,6 +115,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
     rightTab: 'details',
     tab: 'details',
     notice,
+    menu: null,
     clipboard: [],
     saved: false,
   }
@@ -427,6 +430,18 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
       }),
 
       clearSelection: (state) => ({ ...state, selection: null }),
+
+      /** Opens the menu for the selection, or for the component alone when it is not selected. */
+      openItemMenu: (state, { id, x, y }: { id: string; x: number; y: number }) => ({
+        ...withTab(state, 'details'),
+        selection: selectedIds(state.selection).includes(id)
+          ? state.selection
+          : { type: 'item', id },
+        placing: null,
+        menu: { x, y },
+      }),
+
+      closeMenu: (state) => ({ ...state, menu: null }),
 
       /** Zooms the camera to a component, as a double-click on it does. */
       zoomTo: (state, { itemId }: { itemId: string }, enqueue) => {

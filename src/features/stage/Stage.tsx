@@ -7,6 +7,7 @@ import { BuilderScene } from '../../scene/BuilderScene'
 import { ActionButton } from '../../ui/buttons'
 import { colors, media } from '../../ui/tokens.stylex'
 import { touchScreen } from '../../ui/touch'
+import { ItemMenu } from './ItemMenu'
 import { StageControls } from './StageControls'
 
 const appear = stylex.keyframes({
@@ -150,6 +151,7 @@ export function Stage() {
         </div>
       )}
       <DragStatus />
+      <ItemMenu />
       <PlacingStatus />
       <div role="status" aria-live="polite">
         <Notice />
