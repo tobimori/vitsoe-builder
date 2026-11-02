@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Dialog, Modal, ModalOverlay } from 'react-aria-components'
 import { ActionButton } from './buttons'
 import { Icon } from './icons'
-import { colors } from './tokens.stylex'
+import { colors, media } from './tokens.stylex'
 
 const fadeIn = stylex.keyframes({ from: { opacity: 0 } })
 const fadeOut = stylex.keyframes({ to: { opacity: 0 } })
@@ -47,6 +47,30 @@ const styles = stylex.create({
     top: 16,
     right: 16,
   },
+  sheetOverlay: {
+    zIndex: 90,
+    display: 'grid',
+    placeItems: 'center',
+    padding: {
+      default: 32,
+      [media.narrow]: 0,
+    },
+  },
+  sheet: {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    width: {
+      default: 'min(1080px, 100vw - 64px)',
+      [media.narrow]: '100vw',
+    },
+    height: {
+      default: 'min(820px, 100dvh - 64px)',
+      [media.narrow]: '100dvh',
+    },
+    backgroundColor: colors.surface,
+    outline: 'none',
+  },
 })
 
 const className = (...rules: stylex.StyleXStyles[]) => stylex.props(...rules).className ?? ''
@@ -84,6 +108,44 @@ export function CardDialog({
       <Modal>
         <Dialog aria-labelledby={labelledBy} {...stylex.props(styles.card)}>
           <CloseButton label={closeLabel} style={styles.close} onPress={onClose} />
+          {children}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  )
+}
+
+/** A large dialog that fills a phone's screen; its content scrolls. */
+export function SheetDialog({
+  label,
+  isOpen,
+  children,
+  onClose,
+}: {
+  label: string
+  isOpen: boolean
+  children: ReactNode
+  onClose: () => void
+}) {
+  return (
+    <ModalOverlay
+      isOpen={isOpen}
+      isDismissable
+      onOpenChange={(open) => {
+        if (!open) onClose()
+      }}
+      className={({ isEntering, isExiting }) =>
+        className(
+          styles.overlay,
+          styles.sheetOverlay,
+          isEntering && styles.fadeIn,
+          isExiting && styles.fadeOut,
+        )
+      }
+    >
+      <Modal>
+        <Dialog aria-label={label} {...stylex.props(styles.sheet)}>
+          <CloseButton label="Close" style={styles.close} onPress={onClose} />
           {children}
         </Dialog>
       </Modal>

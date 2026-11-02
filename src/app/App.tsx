@@ -6,6 +6,7 @@ import {
   PhoneTotal,
   RightPanel,
 } from '../features/panel/Panels'
+import { LibraryDialog } from '../features/library/LibraryDialog'
 import { Stage } from '../features/stage/Stage'
 import { colors, media } from '../ui/tokens.stylex'
 import { useSinglePanel } from '../ui/useSinglePanel'
@@ -55,6 +56,7 @@ export function App() {
       ) : (
         <RightPanel />
       )}
+      <LibraryDialog />
     </div>
   )
 }

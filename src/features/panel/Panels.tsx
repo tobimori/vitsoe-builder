@@ -15,6 +15,7 @@ import { ArButton } from '../ar/ArButton'
 import { ComponentsTab } from '../components/ComponentsTab'
 import { DetailsPanel } from '../details/DetailsPanel'
 import { LayersPanel } from '../layers/LayersPanel'
+import { libraryOpen } from '../library/LibraryDialog'
 import { PartsList } from '../parts/PartsList'
 import { ShareButton } from '../share/ShareButton'
 import { PlanMenu } from './PlanMenu'
@@ -124,8 +125,30 @@ const styles = stylex.create({
     textOverflow: 'ellipsis',
   },
   status: {
-    display: 'block',
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
     marginTop: -4,
+  },
+  libraryLink: {
+    padding: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    color: {
+      default: colors.blue,
+      ':hover': colors.blueDark,
+    },
+    fontSize: 13,
+    lineHeight: '18px',
+    cursor: 'pointer',
+    outline: 'none',
+  },
+  libraryLinkFocused: {
+    outlineWidth: 2,
+    outlineStyle: 'solid',
+    outlineColor: colors.blue,
+    outlineOffset: 2,
   },
   total: {
     display: 'flex',
@@ -264,9 +287,18 @@ function PlanName() {
         </TextField>
         <PlanMenu />
       </div>
-      <span {...stylex.props(text.small, styles.status)}>
-        {saved ? 'Saved in this browser' : 'Not saved yet'}
-      </span>
+      <div {...stylex.props(text.small, styles.status)}>
+        <span>{saved ? 'Saved in this browser' : 'Not saved yet'}</span>
+        <Button
+          onPress={() => libraryOpen.set(true)}
+          className={({ isFocusVisible }) =>
+            stylex.props(styles.libraryLink, isFocusVisible && styles.libraryLinkFocused)
+              .className ?? ''
+          }
+        >
+          Library
+        </Button>
+      </div>
     </div>
   )
 }

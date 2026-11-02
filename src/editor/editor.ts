@@ -1,22 +1,23 @@
 import { useAtom, useSelector } from '@xstate/store-react'
 import { catalog } from '../domain/catalog/catalog'
+import { parsePlan } from '../domain/plan/codec'
 import { initialPlan } from '../domain/plan/defaults'
 import { resolveInitialPlan } from '../domain/plan/share'
 import type { Plan } from '../domain/plan/types'
+import { editPlanId, library, newPlanId, storedPlan } from './library'
 import { createEditor, createEditorSelectors, type EditorContext } from './store'
 
-export const STORAGE_KEY = 'vitsoe-606-plan'
+const normalised = (plan: Plan) => JSON.stringify(parsePlan(JSON.stringify(plan), catalog))
 
-function savedPlan() {
-  try {
-    return localStorage.getItem(STORAGE_KEY)
-  } catch {
-    // Private browsing can block storage; shared links still work
-    return null
-  }
+/** A link to another plan opens as a new saved plan, so it does not replace the one being edited. */
+export function keepSharedPlan(shared: Plan, editing: Plan | undefined) {
+  if (editing && normalised(shared) !== normalised(editing)) editPlanId(newPlanId())
 }
 
-const initial = resolveInitialPlan(window.location.hash, savedPlan(), catalog, initialPlan)
+const saved = storedPlan(library.get().current)
+const initial = resolveInitialPlan(window.location.hash, saved, catalog, initialPlan)
+if (initial.source === 'url')
+  keepSharedPlan(initial.plan, saved ? parsePlan(saved, catalog) : undefined)
 
 export const editor = createEditor(initial.plan, initial.warning ?? null)
 
