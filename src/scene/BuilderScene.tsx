@@ -7,9 +7,10 @@ import type { Plan } from '../domain/plan/types'
 import type { Selection } from '../editor/store'
 import { DrawingView } from './drawing/DrawingView'
 import { castRay, ObliqueCamera } from './drawing/ObliqueCamera'
-import { ItemGuides, RunGuides } from './interaction/DragGuides'
+import { GapGuides, ItemGuides, RunGuides } from './interaction/DragGuides'
 import { PlacementTool } from './interaction/PlacementTool'
 import { ownBounds } from './interaction/drag'
+import { gapsBetween } from './interaction/gaps'
 import { touchScreen } from '../ui/touch'
 import { measureItem, useAssemblyDrag, type ItemPreview } from './interaction/useAssemblyDrag'
 import { disposeAssembly } from './models/assembly'
@@ -125,10 +126,21 @@ function Workspace() {
   const { centre, rotation } = runAxes(plan)
   const { x, z } = centre
 
+  // Pointing at another component with one selected measures the space between them
+  const selectedItem =
+    selection?.type === 'item'
+      ? plan.system.items.find((item) => item.id === selection.id)
+      : undefined
+  const gaps =
+    selectedItem && selected && hovered && drag.hover?.type === 'item'
+      ? gapsBetween(selected, hovered, assembly, selectedItem.face)
+      : null
+
   // Measurements stay hidden until something is hovered or dragged, or Alt shows them all
   const revealed = showDimensions || altHeld
-  const measuredId =
-    drag.hover?.type === 'item'
+  const measuredId = gaps
+    ? undefined
+    : drag.hover?.type === 'item'
       ? drag.hover.id
       : selection?.type === 'item' && (revealed || touchScreen)
         ? selection.id
@@ -172,6 +184,7 @@ function Workspace() {
           <PlacementTool placing={placing} plan={plan} tracks={tracks} drawing={drawing} />
         )}
         {itemGuides && <ItemGuides preview={itemGuides} />}
+        {gaps && <GapGuides gaps={gaps} />}
         {runGuides && (
           <RunGuides
             plan={plan}

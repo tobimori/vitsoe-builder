@@ -53,17 +53,19 @@ export function ownBounds(object: THREE.Object3D, frame: THREE.Object3D = object
   object.updateWorldMatrix(true, true)
   const inverse = frame.matrixWorld.clone().invert()
   const bounds = new THREE.Box3()
-  object.traverse((child) => {
-    if (!(child instanceof THREE.Mesh) || isInkLine(child)) return
-    if (!child.geometry.boundingBox) child.geometry.computeBoundingBox()
-    if (!child.geometry.boundingBox) return
-    const transform = inverse.clone().multiply(child.matrixWorld)
-    bounds.union(child.geometry.boundingBox.clone().applyMatrix4(transform))
-  })
+  const visit = (child: THREE.Object3D) => {
+    if (child instanceof THREE.Mesh && !isInkLine(child)) {
+      if (!child.geometry.boundingBox) child.geometry.computeBoundingBox()
+      const transform = inverse.clone().multiply(child.matrixWorld)
+      if (child.geometry.boundingBox)
+        bounds.union(child.geometry.boundingBox.clone().applyMatrix4(transform))
+    }
+    child.children.forEach(visit)
+  }
+  visit(object)
   return bounds
 }
 
-// Only the dragged component is measured, not the accessories that travel with it
 export function dragPreviewBounds(ghost: THREE.Group, itemId: string) {
   const bounds = new THREE.Box3()
   for (const child of ghost.children)

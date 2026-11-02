@@ -3,7 +3,15 @@ import type { Plan } from '../../domain/plan/types'
 import { wallLength } from '../../domain/plan/walls'
 import { mm } from '../models/primitives'
 import { Dimension } from '../view/Dimension'
+import type { Gap } from './gaps'
 import type { ItemPreview, SupportPreview } from './useAssemblyDrag'
+
+/** The space between the selected component and the one under the pointer. */
+export function GapGuides({ gaps }: { gaps: Gap[] }) {
+  return gaps.map((gap, index) => (
+    <Dimension key={index} start={gap.start} end={gap.end} label={gap.label} onTop />
+  ))
+}
 
 /** Pin height, width and depth of the component at its drop position. */
 export function ItemGuides({ preview }: { preview: ItemPreview }) {

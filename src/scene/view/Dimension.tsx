@@ -20,12 +20,15 @@ export function Dimension({
   label,
   labelPosition,
   labelAlign,
+  onTop = false,
 }: {
   start: Point
   end: Point
   label: string
   labelPosition?: Point
   labelAlign?: LabelAlign
+  /** Draws the line over the components in front of it. */
+  onTop?: boolean
 }) {
   const midpoint: Point = labelPosition ?? [
     (start[0] + end[0]) / 2,
@@ -37,7 +40,14 @@ export function Dimension({
 
   return (
     <group raycast={ignoreRaycast}>
-      <Line raycast={ignoreRaycast} points={[start, end]} color="#7a7a7a" lineWidth={0.75} />
+      <Line
+        raycast={ignoreRaycast}
+        points={[start, end]}
+        color="#7a7a7a"
+        lineWidth={0.75}
+        depthTest={!onTop}
+        renderOrder={onTop ? 29 : 0}
+      />
       {[start, end].map((point, index) => (
         <Line
           raycast={ignoreRaycast}
@@ -48,6 +58,8 @@ export function Dimension({
           ]}
           color="#7a7a7a"
           lineWidth={0.75}
+          depthTest={!onTop}
+          renderOrder={onTop ? 29 : 0}
         />
       ))}
       <ScreenLabel position={midpoint} text={label} style={labelStyle} align={labelAlign} />
