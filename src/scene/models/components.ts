@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js'
 import type { CatalogProduct, ProductVariant } from '../../domain/catalog/types'
+import { METAL_SHELF } from '../../domain/placement/envelope'
 import { BAY_USABLE_WIDTH } from '../../domain/placement/grid'
 import type { PlanItem } from '../../domain/plan/types'
 import type { Colour, Finish } from '../../domain/types'
@@ -27,7 +28,8 @@ export type ModelItem = Omit<PlanItem, 'finish' | 'frontFinish'> & {
 const steelThickness = 0.0016
 const pinTop = 0.01
 const shelfDeck = -0.0984
-const shelfHem = shelfDeck - steelThickness - 0.014
+const shelfHem = -mm(METAL_SHELF.lip)
+const secondHole = mm(METAL_SHELF.secondHole)
 const carrierHole = 0.004
 const earBack = -mm(mountingProfile.pinDepth - mountingProfile.trackWeb - 1)
 const trackFront = mm(mountingProfile.trackDepth - mountingProfile.pinDepth)
@@ -78,7 +80,7 @@ function sidePlate(
   // Planning guide p4 (1:5): a steel shelf side ends 7 mm above the pin, so
   // it can turn about the pin inside the E-track. Its second hole, 90.8 mm
   // lower, lets the shelf hang either way up.
-  const top = steel ? 0.007 : pinTop
+  const top = steel ? mm(METAL_SHELF.top) : pinTop
   const shape = new THREE.Shape()
   shape.moveTo(earBack, bottom)
   if (steel) shape.lineTo(depth, bottom)
@@ -90,7 +92,7 @@ function sidePlate(
   shape.quadraticCurveTo(depth, top, depth - 0.01, top)
   shape.lineTo(earBack, top)
   shape.closePath()
-  for (const y of steel ? [0, -0.0908] : [0]) {
+  for (const y of steel ? [0, -secondHole] : [0]) {
     const hole = new THREE.Path()
     hole.absarc(0, y, carrierHole, 0, Math.PI * 2, true)
     shape.holes.push(hole)
@@ -103,8 +105,7 @@ function sidePlate(
 function metalShelf(group: THREE.Group, w: number, d: number, material: THREE.Material) {
   // Planning guide pp9 and 10 (1:10): the deck lies 100 mm below the pin, the
   // usable depth starts at the E-track's front face, and the rolled lip adds
-  // about 10 mm. Its drop below the deck varies between drawings (p4 9 mm,
-  // p9 20 mm); 14 mm matches the four-bay render in docs/references.
+  // about 10 mm in front and drops 20 mm below the deck.
   const front = d + trackFront
   const underside = shelfDeck - steelThickness
 
@@ -691,6 +692,7 @@ export function makeComponent(
       // Turning over around the depth axis keeps the rear holes and reliefs
       // at the support. An X turn would swap the front lip and rear edge.
       group.rotation.z = Math.PI
+      if (product.id === 'shelf') group.position.y = -secondHole
     } else {
       // The official rotating-shelf demonstration inverts first, then turns
       // the same body forward around its carrier axis. No added bracket.

@@ -398,7 +398,7 @@ describe('configured assembly and AR export', () => {
       }
       const component = makeComponent(product, item, product.variants[0]!)
       const bounds = new Box3().setFromObject(component)
-      expect(bounds.getSize(new Vector3()).y).toBeCloseTo(0.121, 5)
+      expect(bounds.getSize(new Vector3()).y).toBeCloseTo(0.127, 5)
       expect(bounds.min.z).toBeGreaterThanOrEqual(-0.011)
       disposeAssembly(component)
     }

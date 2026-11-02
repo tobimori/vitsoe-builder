@@ -22,7 +22,6 @@ export function isCabinet(productId: string) {
   return cabinets.has(productId)
 }
 
-/** Shelves share one 100 mm deck envelope below the pin, or above it when inverted. */
 export function isShelfFamily(productId: string) {
   return shelves.has(productId)
 }

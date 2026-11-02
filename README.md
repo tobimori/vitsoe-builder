@@ -60,6 +60,8 @@ stops with `ERR_PNPM_IGNORED_BUILDS`.
 - Components hang on pins in the E-tracks. The first hole is 35 mm from the bottom
   of a track, then there's one every 70 mm. With the tracks at the usual 345 mm, a
   cabinet can sit with its top at 740 mm, level with a table.
+- A metal shelf is 127 mm tall from the top of its sides to the bottom of its lip.
+  Upside down, it hangs from its second hole.
 - There are four ways to mount a system: on the wall, on posts tied to the wall
   (semi-wall-mounted), on posts held between floor and ceiling, or freestanding on
   feet. The last two can carry components on both sides.

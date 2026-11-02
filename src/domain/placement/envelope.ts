@@ -4,6 +4,15 @@ import type { Plan, PlanItem } from '../plan/types'
 import type { Millimetres } from '../types'
 import { carrierHeight, TABLETOP_HEIGHT } from './grid'
 
+/**
+ * The metal shelf, from the planning guide's 1:5 and 1:10 drawings (pp4, 9): its sides end
+ * 7 mm above the pin and 7.5 mm behind it, and its rolled lip ends 120 mm below the pin
+ * and 20.5 mm beyond the catalogue depth. Turned over, it hangs from its second hole,
+ * 90.8 mm below the first.
+ * https://www.vitsoe.com/site/download/3563/606_Universal_Shelving_System_planning_guide_UK_EU_RW.pdf
+ */
+export const METAL_SHELF = { top: 7, back: 7.5, lip: 120, front: 20.5, secondHole: 90.8 }
+
 /** A vertical band and its depth from the pin line, in millimetres. */
 interface Band {
   y: Millimetres
@@ -24,11 +33,19 @@ function bandsOverlap(a: Band, b: Band) {
 export function verticalEnvelope(item: PlanItem, variant: ProductVariant) {
   if (isIntegratedTable(item.productId)) return { start: 0, size: TABLETOP_HEIGHT }
 
+  if (item.productId === 'shelf') {
+    const { top, back, lip, front, secondHole } = METAL_SHELF
+    if (item.orientation === 'inverted') {
+      return { start: item.height - top - secondHole, size: top + lip }
+    }
+    if (item.orientation === 'vertical') {
+      return { start: item.height - variant.depth - front, size: variant.depth + front + back }
+    }
+    return { start: item.height - lip, size: lip + top }
+  }
+
   if (isShelfFamily(item.productId)) {
     if (item.orientation === 'inverted') return { start: item.height - 10, size: 110 }
-    if (item.productId === 'shelf' && item.orientation === 'vertical') {
-      return { start: item.height - variant.depth, size: variant.depth + 10 }
-    }
     return { start: item.height - 100, size: 110 }
   }
 
@@ -41,6 +58,9 @@ export function verticalEnvelope(item: PlanItem, variant: ProductVariant) {
 
 /** Open drawers and drop fronts reach further forward than the closed component. */
 export function effectiveDepth(item: PlanItem, variant: ProductVariant) {
+  if (item.productId === 'shelf') {
+    return item.orientation === 'vertical' ? METAL_SHELF.lip : variant.depth + METAL_SHELF.front
+  }
   if (!item.open) return variant.depth
   if (item.productId === 'drop-front-cabinet') return variant.depth + variant.height - 38
   // A retractable flap slides back into the cabinet
