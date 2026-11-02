@@ -2,23 +2,12 @@ import * as v from 'valibot'
 import type { Catalog } from '../catalog/catalog'
 import { isAccessory } from '../catalog/catalog'
 import { orientationsFor } from '../catalog/families'
-import { DECOR_COUNT_LIMITS } from '../decor/decor'
 import type { Plan } from './types'
 
 const whole = (minimum: number, maximum: number) =>
   v.pipe(v.number(), v.integer(), v.minValue(minimum), v.maxValue(maximum))
 
 const colour = v.picklist(['off-white', 'black', 'silver'])
-
-const decor = v.pipe(
-  v.object({
-    kind: v.picklist(['vinyl', 'art-books']),
-    arrangement: v.picklist(['upright', 'stacked']),
-    count: whole(1, Math.max(...Object.values(DECOR_COUNT_LIMITS))),
-    position: v.picklist(['left', 'centre', 'right']),
-  }),
-  v.check((entry) => entry.count <= DECOR_COUNT_LIMITS[entry.kind]),
-)
 
 const item = v.object({
   id: v.string(),
@@ -32,7 +21,6 @@ const item = v.object({
   orientation: v.optional(v.picklist(['standard', 'inverted', 'vertical'])),
   parentItemId: v.optional(v.string()),
   open: v.optional(v.boolean()),
-  decor: v.optional(decor),
 })
 
 const planSchema = v.object({

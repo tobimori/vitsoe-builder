@@ -128,19 +128,10 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
       moved.face !== original.face ||
       moved.orientation !== original.orientation ||
       moved.parentItemId !== original.parentItemId ||
-      moved.open !== original.open ||
-      moved.decor !== original.decor
+      moved.open !== original.open
 
     if (spatialChange && !proposal.valid) {
-      const decorIssue = validatePlan(proposal.plan, catalog).find(
-        (issue) =>
-          (issue.code === 'decor-fit' || issue.code === 'decor-clearance') &&
-          issue.itemIds?.includes(moved.id),
-      )
-      return notify(
-        state,
-        decorIssue?.message ?? 'That position is outside the system or overlaps another component.',
-      )
+      return notify(state, 'That position is outside the system or overlaps another component.')
     }
 
     return {

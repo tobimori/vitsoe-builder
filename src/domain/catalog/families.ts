@@ -18,15 +18,6 @@ const shelves = new Set([
   'shelf-with-drawer',
 ])
 
-const decorHosts = new Set([
-  'shelf',
-  'wood-shelf',
-  'double-shelf',
-  'desk-shelf',
-  'table',
-  'shelf-with-drawer',
-])
-
 export function isCabinet(productId: string) {
   return cabinets.has(productId)
 }
@@ -43,10 +34,6 @@ export function isIntegratedTable(productId: string) {
 /** A drawer, flap or door front that opens and can take its own colour on beech. */
 export function hasFront(productId: string) {
   return isCabinet(productId) || productId === 'shelf-with-drawer'
-}
-
-export function isDecorHost(item: { productId: string; orientation?: ItemOrientation }) {
-  return decorHosts.has(item.productId) && item.orientation !== 'vertical'
 }
 
 export function orientationsFor(productId: string): ItemOrientation[] {

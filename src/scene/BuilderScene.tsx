@@ -13,7 +13,6 @@ import { ownBounds } from './interaction/drag'
 import { touchScreen } from '../ui/touch'
 import { measureItem, useAssemblyDrag, type ItemPreview } from './interaction/useAssemblyDrag'
 import { disposeAssembly } from './models/assembly'
-import { onDecorTexturesLoaded } from './models/decor'
 import { studioLighting } from './studio/lighting'
 import { assemblyAtom } from './view/assembly'
 import { runAxes } from './view/axes'
@@ -97,7 +96,6 @@ function useViewCamera(drawing: boolean) {
 }
 
 function Workspace() {
-  const invalidate = useThree((state) => state.invalidate)
   const plan = useAtom(selectors.plan)
   const tracks = useAtom(selectors.tracks)
   const assembly = useAtom(assemblyAtom)
@@ -114,7 +112,6 @@ function Workspace() {
   const altHeld = useAltHeld()
   const drag = useAssemblyDrag({ plan, tracks, assembly, placement })
 
-  useEffect(() => onDecorTexturesLoaded(invalidate), [invalidate])
   useEffect(() => {
     const subscription = editor.on('zoomTo', ({ itemId }) => setFocus({ itemId }))
     return () => subscription.unsubscribe()

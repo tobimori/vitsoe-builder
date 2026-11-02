@@ -1,18 +1,11 @@
-import {
-  hasFront,
-  isCabinet,
-  isDecorHost,
-  isIntegratedTable,
-  isShelfFamily,
-} from '../catalog/families'
+import { hasFront, isCabinet, isIntegratedTable, isShelfFamily } from '../catalog/families'
 import type { ProductVariant } from '../catalog/types'
-import { decorLayout, decorSurface } from '../decor/decor'
 import type { Plan, PlanItem } from '../plan/types'
 import type { Millimetres } from '../types'
 import { carrierHeight, TABLETOP_HEIGHT } from './grid'
 
 /** A vertical band and its depth from the pin line, in millimetres. */
-export interface Band {
+interface Band {
   y: Millimetres
   height: Millimetres
   z: Millimetres
@@ -23,7 +16,7 @@ export function overlaps(aStart: number, aSize: number, bStart: number, bSize: n
   return aStart < bStart + bSize && bStart < aStart + aSize
 }
 
-export function bandsOverlap(a: Band, b: Band) {
+function bandsOverlap(a: Band, b: Band) {
   return overlaps(a.y, a.height, b.y, b.height) && overlaps(a.z, a.depth, b.z, b.depth)
 }
 
@@ -55,7 +48,7 @@ export function effectiveDepth(item: PlanItem, variant: ProductVariant) {
   return hasFront(item.productId) ? variant.depth + 220 : variant.depth
 }
 
-export function occupiedBands(item: PlanItem, variant: ProductVariant, plan: Plan): Band[] {
+function occupiedBands(item: PlanItem, variant: ProductVariant, plan: Plan): Band[] {
   if (!isIntegratedTable(item.productId)) {
     const envelope = verticalEnvelope(item, variant)
     return [
@@ -84,18 +77,4 @@ export function itemsCollide(
   return occupiedBands(a, aVariant, plan).some((aBand) =>
     bBands.some((bBand) => bandsOverlap(aBand, bBand)),
   )
-}
-
-/** The space display objects take above their host surface. */
-export function decorBand(item: PlanItem, variant: ProductVariant): Band | undefined {
-  if (!item.decor || !isDecorHost(item)) return undefined
-
-  const surface = decorSurface(item, variant)
-  const { bounds } = decorLayout(item.decor, surface.width)
-  return {
-    y: surface.elevation + bounds.y,
-    height: bounds.height,
-    z: bounds.z,
-    depth: bounds.depth,
-  }
 }

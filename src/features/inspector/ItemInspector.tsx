@@ -23,7 +23,6 @@ import { text } from '../../ui/text'
 import { touchScreen } from '../../ui/touch'
 import { weights } from '../../ui/tokens.stylex'
 import { VariantList } from '../components/VariantList'
-import { DecorEditor } from './DecorEditor'
 import { InspectorHeader } from './InspectorHeader'
 
 const orientationLabels: Record<ItemOrientation, string> = {
@@ -217,8 +216,6 @@ export function ItemInspector({ item }: { item: PlanItem }) {
           )}
         </Rows>
       </Section>
-
-      <DecorEditor item={item} variant={variant} onChange={update} />
 
       {accessories.length > 0 && (
         <Section title="Accessories">

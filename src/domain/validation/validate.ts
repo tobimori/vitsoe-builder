@@ -1,15 +1,7 @@
 import type { Catalog } from '../catalog/catalog'
 import { isAccessory } from '../catalog/catalog'
-import { isDecorHost } from '../catalog/families'
 import type { CatalogProduct, ProductVariant } from '../catalog/types'
-import { decorFitsSurface } from '../decor/decor'
-import {
-  bandsOverlap,
-  decorBand,
-  itemsCollide,
-  occupiedBands,
-  verticalEnvelope,
-} from '../placement/envelope'
+import { itemsCollide, verticalEnvelope } from '../placement/envelope'
 import { BAY_USABLE_WIDTH, carrierHeight } from '../placement/grid'
 import { resolveItemFinish } from '../plan/finish'
 import { allowedFaces, isWallMounted, wallTieDistance } from '../plan/system'
@@ -36,8 +28,6 @@ export type ValidationCode =
   | 'track-slot'
   | 'track-join'
   | 'track-special'
-  | 'decor-fit'
-  | 'decor-clearance'
   | 'stability'
   | 'balanced-load'
 
@@ -278,27 +268,7 @@ function componentIssues(context: Context, component: PlacedComponent): Validati
     )
   }
 
-  if (item.decor) issues.push(...decorIssues(plan, component))
-
   return issues
-}
-
-function decorIssues(plan: Plan, { item, variant }: PlacedComponent): ValidationIssue[] {
-  const ids = [item.id]
-  if (!isDecorHost(item)) {
-    return [error('decor-fit', 'Display objects need a horizontal shelf or table surface.', ids)]
-  }
-  if (!decorFitsSurface(item, variant)) {
-    return [error('decor-fit', 'These display objects do not fit the selected surface.', ids)]
-  }
-
-  const band = decorBand(item, variant)
-  if (band && (band.y < 0 || band.y + band.height > plan.room.ceilingHeight)) {
-    return [
-      error('decor-clearance', 'The display objects extend beyond the available room height.', ids),
-    ]
-  }
-  return []
 }
 
 function collisionIssues({ plan }: Context, components: PlacedComponent[]): ValidationIssue[] {
@@ -318,37 +288,6 @@ function collisionIssues({ plan }: Context, components: PlacedComponent[]): Vali
       }
     }
   })
-
-  return issues
-}
-
-function decorClearanceIssues({ plan }: Context, components: PlacedComponent[]): ValidationIssue[] {
-  const issues: ValidationIssue[] = []
-
-  for (const host of components) {
-    const band = decorBand(host.item, host.variant)
-    if (!band || !decorFitsSurface(host.item, host.variant)) continue
-
-    for (const { item, variant } of components) {
-      if (
-        item.id === host.item.id ||
-        item.parentItemId ||
-        item.bayIndex !== host.item.bayIndex ||
-        item.face !== host.item.face
-      ) {
-        continue
-      }
-      if (occupiedBands(item, variant, plan).some((other) => bandsOverlap(band, other))) {
-        issues.push(
-          error(
-            'decor-clearance',
-            'The display objects need more clear space above this surface.',
-            [host.item.id, item.id],
-          ),
-        )
-      }
-    }
-  }
 
   return issues
 }
@@ -389,7 +328,6 @@ export function validatePlan(plan: Plan, catalog: Catalog): ValidationIssue[] {
     ...structureIssues(context),
     ...itemIssues,
     ...collisionIssues(context, components),
-    ...decorClearanceIssues(context, components),
     ...loadBalanceIssues(context),
   ]
 }

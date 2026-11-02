@@ -44,13 +44,6 @@ export interface StructureOptions {
 
 export type TrackMode = 'automatic' | 'manual'
 
-export interface ShelfDecor {
-  kind: 'vinyl' | 'art-books'
-  arrangement: 'upright' | 'stacked'
-  count: number
-  position: 'left' | 'centre' | 'right'
-}
-
 export interface PlanItem {
   id: string
   productId: string
@@ -67,7 +60,6 @@ export interface PlanItem {
   /** Accessories attach to this host component. */
   parentItemId?: string
   open?: boolean
-  decor?: ShelfDecor
 }
 
 export interface PlanSystem {

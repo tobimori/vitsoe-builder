@@ -11,7 +11,6 @@ import {
 } from '../../domain/supports/tracks'
 import type { Face } from '../../domain/types'
 import { carrierPinName, componentKey, makeComponent } from './components'
-import { makeShelfDecor } from './decor'
 import { mountingDepths } from './mounting'
 import { mm } from './primitives'
 import { disposeGeometry, reuse, startBuild } from './reuse'
@@ -67,8 +66,6 @@ export function buildComponent(
       makeComponent(product, modelItem, variant, attachmentHeight),
     ),
   )
-  const decor = makeShelfDecor(item, variant, component)
-  if (decor) component.add(decor)
   component.traverse((object) => {
     object.userData.itemId = item.id
   })

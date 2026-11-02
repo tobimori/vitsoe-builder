@@ -11,14 +11,12 @@ import type { Catalog } from '../../domain/catalog/catalog'
 import type { Plan } from '../../domain/plan/types'
 import type { MountingType } from '../../domain/types'
 import { buildAssembly, disposeAssembly } from '../models/assembly'
-import { decorTexturesReady } from '../models/decor'
 
 /** Export only the actual configuration, in metres; the room is never included. */
 export async function exportAssemblyUsdz(
   assembly: Group,
   mountingType: MountingType,
 ): Promise<Blob> {
-  await decorTexturesReady()
   const snapshot = assembly.clone(true)
   snapshot.position.set(0, 0, 0)
   const wall = mountingType === 'wall'
@@ -73,7 +71,6 @@ export async function exportAssemblyUsdz(
 
 /** Builds the same assembly as the scene, so AR shows exactly the planned geometry. */
 export async function exportPlanUsdz(plan: Plan, catalog: Catalog) {
-  await decorTexturesReady()
   const assembly = buildAssembly(plan, catalog)
   try {
     return await exportAssemblyUsdz(assembly, plan.system.mountingType)
