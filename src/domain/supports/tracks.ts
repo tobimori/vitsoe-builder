@@ -1,6 +1,8 @@
 import type { Catalog } from '../catalog/catalog'
 import { isAccessory } from '../catalog/catalog'
-import { structurePrice } from '../catalog/structure'
+import { isCabinet } from '../catalog/families'
+import { findStructureVariant, structurePrice } from '../catalog/structure'
+import { verticalEnvelope } from '../placement/envelope'
 import { carrierHeight, VERTICAL_PITCH } from '../placement/grid'
 import { allowedFaces } from '../plan/system'
 import type { Plan, PlanItem } from '../plan/types'
@@ -18,6 +20,8 @@ const specialTracks: Partial<Record<number, string>> = {
   110: 'e-track-shelf-height-110',
   395: 'e-track-cabinet-height-395',
 }
+
+const CABINET_TRACK = 395
 
 export function trackVariantId(length: Millimetres) {
   return specialTracks[length] ?? `e-track-${length}`
@@ -148,20 +152,62 @@ export function deriveSupportTrackPlans(plan: Plan, catalog: Catalog): SupportTr
   const normalBottom = system.mountHeight
   const maximumTop = maximumTrackTop(plan)
   const supportIndices = Array.from({ length: system.bays.length + 1 }, (_, index) => index)
+  // A support that carries only cabinets at one height takes the cabinet-height profile,
+  // flush with them at both ends
+  const cabinetTrackFits = findStructureVariant(
+    'e-track',
+    trackVariantId(CABINET_TRACK),
+  )?.mountingTypes?.includes(system.mountingType)
 
   return supportIndices.flatMap((supportIndex) =>
     allowedFaces(plan).map((face): SupportTrackPlan => {
-      const pinHeights = system.items
-        .filter((item) => {
-          const product = catalog.product(item.productId)
-          return (
-            product &&
-            !isAccessory(product) &&
-            item.face === face &&
-            (item.bayIndex === supportIndex || item.bayIndex + 1 === supportIndex)
-          )
-        })
-        .map((item) => carrierHeight(item, plan))
+      const carried = system.items.filter((item) => {
+        const product = catalog.product(item.productId)
+        return (
+          product &&
+          !isAccessory(product) &&
+          item.face === face &&
+          (item.bayIndex === supportIndex || item.bayIndex + 1 === supportIndex)
+        )
+      })
+
+      const cabinet = carried[0]
+      const cabinetVariant = cabinet && catalog.variant(cabinet.productId, cabinet.variantId)
+      if (
+        automatic &&
+        cabinetTrackFits &&
+        cabinet !== undefined &&
+        cabinetVariant?.height === CABINET_TRACK &&
+        carried.every(
+          (item) =>
+            isCabinet(item.productId) &&
+            item.height === cabinet.height &&
+            catalog.variant(item.productId, item.variantId)?.height === CABINET_TRACK,
+        )
+      ) {
+        const bottom = verticalEnvelope(cabinet, cabinetVariant).start
+        const price = trackPrice(CABINET_TRACK)
+        return {
+          supportIndex,
+          face,
+          bottom,
+          top: bottom + CABINET_TRACK,
+          requiredLength: CABINET_TRACK,
+          segments: [
+            {
+              stockLength: CABINET_TRACK,
+              installedLength: CABINET_TRACK,
+              cut: false,
+              estimatedPriceEur: price,
+            },
+          ],
+          joins: 0,
+          estimatedPriceEur: price,
+          estimatedCuttingChargeEur: 0,
+        }
+      }
+
+      const pinHeights = carried.map((item) => carrierHeight(item, plan))
 
       const lowestPin = pinHeights.length ? Math.min(...pinHeights) : normalBottom
       const highestPin = pinHeights.length ? Math.max(...pinHeights) : normalBottom + 470

@@ -33,7 +33,7 @@ export function verticalEnvelope(item: PlanItem, variant: ProductVariant) {
   }
 
   if (isCabinet(item.productId)) {
-    return { start: item.height - variant.height + 20, size: variant.height }
+    return { start: item.height - variant.height + 10, size: variant.height }
   }
 
   return { start: item.height - Math.max(0, variant.height - 10), size: variant.height }
