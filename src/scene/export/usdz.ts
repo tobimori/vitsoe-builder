@@ -19,10 +19,7 @@ export async function exportAssemblyUsdz(
 ): Promise<Blob> {
   const snapshot = assembly.clone(true)
   snapshot.position.set(0, 0, 0)
-  const wall = mountingType === 'wall'
-  // Apple plane anchors use local XZ as the surface and +Y as its normal.
-  // In wall-anchor space, furniture depth is +Y and furniture up is -Z.
-  snapshot.rotation.set(wall ? -Math.PI / 2 : 0, 0, 0)
+  snapshot.rotation.set(0, 0, 0)
   snapshot.scale.set(1, 1, 1)
   snapshot.name = 'Furniture'
   snapshot.updateMatrixWorld(true)
@@ -30,6 +27,12 @@ export async function exportAssemblyUsdz(
     quickLookCompatible: true,
     includeAnchoringProperties: false,
   })
+  // Without an anchor, Quick Look keeps the model upright and lets it snap to the floor
+  // or a wall. A vertical anchor shows it on the floor first, turned onto its back, until
+  // it is moved to a wall. model-viewer exports ar-placement="wall" the same way:
+  // https://github.com/google/model-viewer/issues/3989
+  if (mountingType === 'wall') return new Blob([data], { type: 'model/vnd.usdz+zip' })
+
   const files = unzipSync(data)
   const source = files['model.usda']
   const model = source ? strFromU8(source) : ''
@@ -37,9 +40,7 @@ export async function exportAssemblyUsdz(
   if (!model.includes(root)) throw new Error('USDZ export root was not found.')
 
   // Three's exporter supplies the meshes but omits the applied anchoring API.
-  // Put it on the document root as Apple specifies. The authored wall-anchor
-  // rotation cancels the child rotation in Object mode; AR replaces this root
-  // pose with the detected plane pose and retains the child-to-anchor basis.
+  // Put it on the document root as Apple specifies.
   // https://developer.apple.com/documentation/usd/preliminary-anchoringapi
   files['model.usda'] = strToU8(
     model.replace(
@@ -49,9 +50,7 @@ export async function exportAssemblyUsdz(
 )
 {
     uniform token preliminary:anchoring:type = "plane"
-    uniform token preliminary:planeAnchoring:alignment = "${wall ? 'vertical' : 'horizontal'}"
-    double xformOp:rotateX = ${wall ? 90 : 0}
-    uniform token[] xformOpOrder = ["xformOp:rotateX"]`,
+    uniform token preliminary:planeAnchoring:alignment = "horizontal"`,
     ),
   )
 

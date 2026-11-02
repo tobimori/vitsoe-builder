@@ -102,7 +102,7 @@ export function ArButton({
           {!iOS
             ? 'Open this planner on an iPhone or iPad to place the system in your room, or download the model.'
             : isWallMounted(plan.system.mountingType)
-              ? 'Point your device at a clear wall, place the system, then adjust its height.'
+              ? 'Scan the floor and a clear wall, then drag the system onto the wall and adjust its height.'
               : 'Scan a clear area of floor, then place the system at full size.'}
         </p>
         {url && (

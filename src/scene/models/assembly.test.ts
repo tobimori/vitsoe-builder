@@ -664,7 +664,7 @@ describe('configured assembly and AR export', () => {
   })
 
   it.each(['wall', 'semi-wall', 'floor-to-ceiling', 'freestanding'] as const)(
-    'exports an upright metre-scale scene with the correct anchor basis (%s)',
+    'exports an upright metre-scale scene with the right anchor (%s)',
     async (mountingType) => {
       const plan = configuration()
       plan.system.mountingType = mountingType
@@ -682,11 +682,16 @@ describe('configured assembly and AR export', () => {
       expect(blob.type).toBe('model/vnd.usdz+zip')
       expect(model).toContain('metersPerUnit = 1')
       expect(model).toContain('upAxis = "Y"')
-      expect(model).toContain(
-        'def Xform "Root" (\n    prepend apiSchemas = ["Preliminary_AnchoringAPI"]',
-      )
-      expect(model).toContain(`alignment = "${wall ? 'vertical' : 'horizontal'}"`)
-      expect(model.match(/preliminary:anchoring:type/g)).toHaveLength(1)
+      if (wall) {
+        expect(model).not.toContain('preliminary:')
+      } else {
+        expect(model).toContain(
+          'def Xform "Root" (\n    prepend apiSchemas = ["Preliminary_AnchoringAPI"]',
+        )
+        expect(model).toContain('alignment = "horizontal"')
+        expect(model.match(/preliminary:anchoring:type/g)).toHaveLength(1)
+      }
+      expect(model).not.toContain('xformOp:rotateX')
 
       // Read the emitted child matrix rather than inspecting the JS snapshot.
       // USD rows serialize Three's column-major elements in this exporter.
@@ -699,43 +704,7 @@ describe('configured assembly and AR export', () => {
         .match(/[-+]?(?:\d*\.)?\d+(?:e[-+]?\d+)?/gi)!
         .map(Number)
       expect(values).toHaveLength(16)
-      const furnitureBasis = new Matrix4().fromArray(values)
-      const expectedUp = wall ? new Vector3(0, 0, -1) : new Vector3(0, 1, 0)
-      const expectedDepth = wall ? new Vector3(0, 1, 0) : new Vector3(0, 0, 1)
-      expect(
-        new Vector3(0, 1, 0).transformDirection(furnitureBasis).distanceTo(expectedUp),
-      ).toBeLessThan(1e-6)
-      expect(
-        new Vector3(0, 0, 1).transformDirection(furnitureBasis).distanceTo(expectedDepth),
-      ).toBeLessThan(1e-6)
-      expect(furnitureBasis.determinant()).toBeCloseTo(1, 7)
-      expect(new Vector3().setFromMatrixPosition(furnitureBasis).length()).toBe(0)
-
-      const angle = (Number(model.match(/double xformOp:rotateX = ([-\d.]+)/)![1]) * Math.PI) / 180
-      const objectPreview = new Matrix4().makeRotationX(angle).multiply(furnitureBasis)
-      expect(
-        new Vector3(0, 1, 0).applyMatrix4(objectPreview).distanceTo(new Vector3(0, 1, 0)),
-      ).toBeLessThan(1e-6)
-      expect(
-        new Vector3(0, 0, 1).applyMatrix4(objectPreview).distanceTo(new Vector3(0, 0, 1)),
-      ).toBeLessThan(1e-6)
-
-      // A detected wall's local Y is its outward normal; local -Z points up.
-      // Check a differently facing wall as well, so this cannot pass by merely
-      // changing the alignment token or rotating the complete scene sideways.
-      const yaw = new Matrix4().makeRotationY(0.8)
-      const anchorPose = wall
-        ? yaw.clone().multiply(new Matrix4().makeRotationX(Math.PI / 2))
-        : yaw.clone()
-      const placed = anchorPose.multiply(furnitureBasis)
-      expect(
-        new Vector3(0, 1, 0).transformDirection(placed).distanceTo(new Vector3(0, 1, 0)),
-      ).toBeLessThan(1e-6)
-      expect(
-        new Vector3(0, 0, 1)
-          .transformDirection(placed)
-          .distanceTo(new Vector3(0, 0, 1).transformDirection(yaw)),
-      ).toBeLessThan(1e-6)
+      expect(new Matrix4().fromArray(values).equals(new Matrix4())).toBe(true)
       expect(assembly.matrix.elements).toEqual(originalMatrix.elements)
       expect(assembly.matrixWorld.elements).toEqual(originalWorld.elements)
 
