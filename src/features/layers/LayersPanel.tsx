@@ -3,9 +3,12 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import {
   Button,
   Collection,
+  DropIndicator,
   Tree,
   TreeItem,
   TreeItemContent,
+  useDragAndDrop,
+  type DropTarget,
   type Key,
   type TreeItemContentRenderProps,
 } from 'react-aria-components'
@@ -14,12 +17,13 @@ import { sizeLabel } from '../../domain/catalog/options'
 import { allowedFaces } from '../../domain/plan/system'
 import type { Plan, PlanItem } from '../../domain/plan/types'
 import type { Face } from '../../domain/types'
-import { editor, useEditor, usePlan } from '../../editor/editor'
+import { editor, selectors, useEditor, usePlan } from '../../editor/editor'
 import { selectedIds, type Selection } from '../../editor/store'
 import { ActionButton } from '../../ui/buttons'
 import { Icon, type IconName } from '../../ui/icons'
 import { text } from '../../ui/text'
 import { colors, media } from '../../ui/tokens.stylex'
+import { fitMoves, plannedMoves, type Place } from './layerMoves'
 
 interface Layer {
   id: string
@@ -28,6 +32,8 @@ interface Layer {
   measure?: number
   /** What selecting the layer selects; sides, bays and the supports only group layers. */
   selection?: { type: 'item'; id: string } | { type: 'support'; index: number }
+  /** Where components dropped on the layer go. */
+  place?: Place
   children: Layer[]
 }
 
@@ -48,6 +54,7 @@ function itemLayer(item: PlanItem, items: readonly PlanItem[]): Layer {
     icon: product?.category ?? 'shelves',
     measure: item.height,
     selection: { type: 'item', id: item.id },
+    place: { kind: 'item', item },
     children: items
       .filter((entry) => entry.parentItemId === item.id)
       .map((entry) => itemLayer(entry, items)),
@@ -62,6 +69,7 @@ function bayLayers(plan: Plan, face: Face, prefix: string): Layer[] {
     name: `Bay ${index + 1}`,
     icon: 'bay',
     measure: bay.centreWidth,
+    place: { kind: 'bay', face, bayIndex: index },
     children: items
       .filter((item) => item.face === face && item.bayIndex === index && !item.parentItemId)
       .sort((a, b) => b.height - a.height)
@@ -78,6 +86,7 @@ function planLayers(plan: Plan): Layer[] {
           id: `face-${face}`,
           name: faceNames[face],
           icon: 'face' as const,
+          place: { kind: 'face' as const, face },
           children: bayLayers(plan, face, `${face}-`),
         }))
       : bayLayers(plan, faces[0] ?? 'front', '')
@@ -161,6 +170,27 @@ const styles = stylex.create({
     outline: `2px solid ${colors.blue}`,
     outlineOffset: -2,
   },
+  dropTarget: {
+    backgroundColor: colors.blueTint,
+    outlineWidth: 1,
+    outlineStyle: 'solid',
+    outlineColor: colors.blue,
+    outlineOffset: -1,
+  },
+  dragging: {
+    opacity: 0.4,
+  },
+  /** Lines up with the row's icon, as Figma draws it. */
+  dropLine: {
+    height: 0,
+    marginLeft: 'calc(26px + (var(--tree-item-level) - 1) * 16px)',
+    outline: 'none',
+  },
+  dropLineShown: {
+    outlineWidth: 1,
+    outlineStyle: 'solid',
+    outlineColor: colors.blue,
+  },
   chevron: {
     display: 'grid',
     flex: 'none',
@@ -201,6 +231,28 @@ const styles = stylex.create({
     color: colors.muted,
     fontVariantNumeric: 'tabular-nums',
   },
+  grip: {
+    display: 'grid',
+    flex: 'none',
+    placeItems: 'center',
+    width: 16,
+    height: 16,
+    padding: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    color: colors.muted,
+    cursor: 'grab',
+    opacity: 0,
+    outline: 'none',
+  },
+  gripShown: {
+    opacity: 1,
+  },
+  gripFocused: {
+    outlineWidth: 2,
+    outlineStyle: 'solid',
+    outlineColor: colors.blue,
+  },
   start: {
     padding: '12px 12px 4px',
   },
@@ -215,7 +267,16 @@ function LayerRow({
   state: TreeItemContentRenderProps
   holdsSelection: boolean
 }) {
-  const { isSelected, isHovered, isFocusVisible, isExpanded, hasChildItems, level } = state
+  const {
+    isSelected,
+    isHovered,
+    isFocusVisible,
+    isExpanded,
+    hasChildItems,
+    level,
+    isDropTarget,
+    isDragging,
+  } = state
   const row = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
@@ -232,6 +293,8 @@ function LayerRow({
         isHovered && styles.hovered,
         isSelected && styles.selected,
         isFocusVisible && styles.focused,
+        isDropTarget && styles.dropTarget,
+        isDragging && styles.dragging,
       )}
     >
       {hasChildItems ? (
@@ -248,6 +311,20 @@ function LayerRow({
       {layer.measure !== undefined && (
         <span {...stylex.props(styles.measure)}>{layer.measure}</span>
       )}
+      <Button
+        slot="drag"
+        aria-label={`Move ${layer.name}`}
+        isDisabled={layer.place?.kind !== 'item'}
+        className={({ isFocusVisible, isDisabled }) =>
+          stylex.props(
+            styles.grip,
+            !isDisabled && (isHovered || isFocusVisible) && styles.gripShown,
+            isFocusVisible && styles.gripFocused,
+          ).className ?? ''
+        }
+      >
+        <Icon name="grip" size={14} />
+      </Button>
     </div>
   )
 }
@@ -255,6 +332,8 @@ function LayerRow({
 /**
  * The system as layers: sides, bays, components with their accessories, and supports.
  * Selecting a layer selects it in the view; double-clicking a component zooms to it.
+ * Dragging components moves them to another side or bay, or between two components;
+ * dragging a bookend moves it to another shelf.
  */
 export function LayersPanel() {
   const plan = usePlan()
@@ -264,6 +343,7 @@ export function LayersPanel() {
   const latest = selected.at(-1) ?? null
   const [collapsed, setCollapsed] = useState<ReadonlySet<Key>>(() => new Set([SUPPORTS]))
   const [revealed, setRevealed] = useState(latest)
+  const dragged = useRef<PlanItem[]>([])
 
   // A selection made in the view opens the groups around it
   if (latest !== revealed) {
@@ -282,6 +362,51 @@ export function LayersPanel() {
       if (!next.delete(key)) next.add(key)
       return next
     })
+
+  const draggedItems = (keys: Iterable<Key>) => {
+    const ids = new Set(keys)
+    return selectors.plan.get().system.items.filter((item) => ids.has(item.id))
+  }
+  const moves = (target: DropTarget) => {
+    if (target.type !== 'item') return undefined
+    const place = all.find((layer) => layer.id === target.key)?.place
+    return place && plannedMoves(selectors.plan.get(), dragged.current, place, target.dropPosition)
+  }
+
+  const { dragAndDropHooks } = useDragAndDrop<Layer>({
+    getItems: (keys) =>
+      [...keys].map((key) => ({
+        'text/plain': all.find((layer) => layer.id === key)?.name ?? String(key),
+      })),
+    onDragStart: ({ keys }) => {
+      dragged.current = draggedItems(keys)
+    },
+    onDragEnd: () => {
+      dragged.current = []
+    },
+    getDropOperation: (target) => (moves(target) ? 'move' : 'cancel'),
+    onMove: ({ target }) => {
+      const planned = moves(target)
+      if (!planned) return
+      const current = selectors.plan.get()
+      const changed = fitMoves(current, planned).filter((move) => {
+        const original = current.system.items.find((item) => item.id === move.id)
+        return (
+          !original ||
+          (Object.keys(move) as (keyof PlanItem)[]).some((key) => move[key] !== original[key])
+        )
+      })
+      if (changed.length > 0) editor.trigger.moveItems({ items: changed })
+    },
+    renderDropIndicator: (target) => (
+      <DropIndicator
+        target={target}
+        className={({ isDropTarget }) =>
+          stylex.props(styles.dropLine, isDropTarget && styles.dropLineShown).className ?? ''
+        }
+      />
+    ),
+  })
 
   return (
     <div {...stylex.props(styles.panel)}>
@@ -306,6 +431,7 @@ export function LayersPanel() {
         selectedKeys={selected}
         expandedKeys={groups.filter((key) => !collapsed.has(key))}
         onExpandedChange={(keys) => setCollapsed(new Set(groups.filter((key) => !keys.has(key))))}
+        dragAndDropHooks={dragAndDropHooks}
         onSelectionChange={(keys) => {
           if (keys === 'all') return editor.trigger.selectAll()
           const targets = [...keys].map((key) => all.find((layer) => layer.id === key)?.selection)

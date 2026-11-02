@@ -17,6 +17,7 @@ const paths = {
   accessories: 'M5.5 12.5v-8h1.5v8M5.5 12.5h5',
   support: 'M8 2v12M6.5 4.5h3M6.5 8h3M6.5 11.5h3',
   dimensions: 'M2.5 5v6M13.5 5v6M2.5 8h11',
+  grip: 'M6 4h0M10 4h0M6 8h0M10 8h0M6 12h0M10 12h0',
 } as const
 
 export type IconName = keyof typeof paths
