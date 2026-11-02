@@ -149,14 +149,14 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
     const result = pasteItems(state.history.present, catalog, items, state.activeFace, () =>
       makeId('item'),
     )
-    if (result.ids.length === 0) return notify(state, 'There is no clear space for that copy.')
+    if (result.ids.length === 0) return notify(state, 'There’s no room for the copy.')
 
     const next = {
       ...withTab(commit(state, result.plan), 'details'),
       selection: itemSelection(result.ids),
     }
     return result.missed > 0
-      ? notify(next, `There was no clear space for ${plural(result.missed, 'component')}.`)
+      ? notify(next, `There was no room for ${plural(result.missed, 'component')}.`)
       : next
   }
 
@@ -195,7 +195,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
       moved.open !== original.open
 
     if (spatialChange && !proposal.valid) {
-      return notify(state, 'That position is outside the system or overlaps another component.')
+      return notify(state, 'That spot is outside the system or already taken.')
     }
 
     return {
@@ -206,7 +206,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
 
   function duplicateItem(state: EditorContext, candidate: PlanItem): EditorContext {
     const proposal = proposeItemDuplicate(state.history.present, catalog, candidate, makeId)
-    if (!proposal?.valid) return notify(state, 'There is no clear space for that copy.')
+    if (!proposal?.valid) return notify(state, 'There’s no room for the copy.')
 
     const original = state.history.present.system.items.find((item) => item.id === candidate.id)
     return {
@@ -355,7 +355,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
           else missed += 1
         }
         if (missed === items.length) {
-          return notify(state, 'That position is outside the system or overlaps another component.')
+          return notify(state, 'That spot is outside the system or already taken.')
         }
         // Moving everything to the other side turns the view with it
         const [face, ...others] = new Set(items.map((item) => item.face))
@@ -363,7 +363,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
         if (turned) enqueue.emit.turnCamera({})
         const next = { ...commit(state, plan), activeFace: turned ? face : state.activeFace }
         return missed > 0
-          ? notify(next, `There was no clear space for ${plural(missed, 'component')}.`)
+          ? notify(next, `There was no room for ${plural(missed, 'component')}.`)
           : next
       },
 
@@ -394,7 +394,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
         const proposal = proposeSupportRunMove(state.history.present, catalog, move)
         return proposal.valid
           ? commit(state, proposal.plan)
-          : notify(state, 'The connected support run does not fit in that position.')
+          : notify(state, 'The system doesn’t fit there.')
       },
 
       /** Selects a component; `extend` adds it to the selection, or takes it out again. */
@@ -490,7 +490,7 @@ export function createEditor(plan: Plan = initialPlan, notice: string | null = n
       placeItem: (state, { item }: { item: Omit<PlanItem, 'id'> }) => {
         const plan = state.history.present
         const candidate = { ...item, id: makeId('item') }
-        if (!canPlaceItem(plan, catalog, candidate)) return notify(state, 'It does not fit here.')
+        if (!canPlaceItem(plan, catalog, candidate)) return notify(state, 'It doesn’t fit here.')
         return commit(state, {
           ...plan,
           system: { ...plan.system, items: [...plan.system.items, candidate] },

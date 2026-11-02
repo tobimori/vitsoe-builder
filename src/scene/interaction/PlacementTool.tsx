@@ -194,7 +194,7 @@ export function PlacementTool({
     const spot = target.current
     if (!spot || !root.current?.visible) return
     if (!spot.valid) {
-      editor.trigger.notify({ notice: 'It does not fit here.' })
+      editor.trigger.notify({ notice: 'It doesn’t fit here.' })
       return
     }
     editor.trigger.placeItem({ item: spot.item })

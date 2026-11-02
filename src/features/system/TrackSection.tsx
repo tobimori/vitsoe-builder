@@ -118,10 +118,10 @@ export function TrackSection() {
       )}
       <p {...stylex.props(text.hint)}>
         {trackMode === 'automatic'
-          ? 'Lengths follow the components. * Cut to fit. A Vitsœ planner confirms joins.'
+          ? 'Lengths follow the components. * Cut to fit. Vitsœ checks the joins.'
           : tableFixed
             ? 'The table legs set the height of the E-tracks.'
-            : 'Components must fit within the E-tracks.'}
+            : 'Components have to fit on the E-tracks.'}
       </p>
     </Section>
   )

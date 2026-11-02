@@ -37,9 +37,7 @@ export function RoomSection() {
           onChange={(ceilingHeight) => resize({ ceilingHeight })}
         />
       </Rows>
-      <p {...stylex.props(text.hint)}>
-        A rectangular room. Measure the ceiling where the system stands.
-      </p>
+      <p {...stylex.props(text.hint)}>Measure the ceiling height where the system will stand.</p>
     </Section>
   )
 }
@@ -52,8 +50,8 @@ export function PositionSection() {
         <PositionFields />
       </Rows>
       <p {...stylex.props(text.hint)}>
-        Choose a wall in the plan and drag the system along it. Distances are to the centres of the
-        outer supports.
+        Choose a wall in the plan, then drag the system along it. Distances are measured to the
+        centres of the outer supports.
       </p>
     </Section>
   )

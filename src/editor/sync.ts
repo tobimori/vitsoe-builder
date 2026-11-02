@@ -21,7 +21,7 @@ function write() {
   try {
     window.history.replaceState(window.history.state, '', buildPlanUrl(plan, window.location.href))
   } catch {
-    editor.trigger.notify({ notice: 'This plan is too large to store in a shareable link.' })
+    editor.trigger.notify({ notice: 'This plan is too big to keep in the link.' })
   }
 }
 
@@ -41,7 +41,7 @@ export function syncPlan() {
     if (shared.status !== 'valid') return
     write()
     keepSharedPlan(shared.plan, selectors.plan.get())
-    editor.trigger.load({ plan: shared.plan, notice: 'Shared plan loaded.' })
+    editor.trigger.load({ plan: shared.plan, notice: 'Shared plan opened.' })
   })
 }
 
@@ -60,7 +60,7 @@ export function openPlan(id: string) {
   const plan = parsePlan(storedPlan(id) ?? '', catalog)
   if (!plan) {
     forgetPlan(id)
-    editor.trigger.notify({ notice: 'That plan could not be read, so it was removed.' })
+    editor.trigger.notify({ notice: 'That plan couldn’t be read, so it was removed.' })
     return
   }
   write()

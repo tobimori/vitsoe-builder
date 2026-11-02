@@ -51,26 +51,26 @@ export type DecodedPlan =
 export function decodePlanHash(hash: string, catalog: Catalog): DecodedPlan {
   const payload = new URLSearchParams(hash.replace(/^#/, '')).get('plan')
   if (payload === null) return { status: 'absent' }
-  if (!payload) return { status: 'invalid', message: 'The shared plan link is empty.' }
+  if (!payload) return { status: 'invalid', message: 'This link has no plan in it.' }
   if (payload.length > MAX_FRAGMENT_LENGTH) {
-    return { status: 'invalid', message: 'The shared plan link is too large.' }
+    return { status: 'invalid', message: 'This link is too long to open.' }
   }
 
   let source: string
   try {
     const compressed = decodeBase64Url(payload)
     if (declaredGzipSize(compressed) > MAX_DOCUMENT_BYTES) {
-      return { status: 'invalid', message: 'The shared plan contains too much data.' }
+      return { status: 'invalid', message: 'The plan in this link is too large to open.' }
     }
     source = strFromU8(gunzipSync(compressed))
   } catch {
-    return { status: 'invalid', message: 'The shared plan could not be read.' }
+    return { status: 'invalid', message: 'The plan in this link couldn’t be read.' }
   }
 
   const plan = parsePlan(source, catalog)
   return plan
     ? { status: 'valid', plan }
-    : { status: 'invalid', message: 'The shared plan is malformed.' }
+    : { status: 'invalid', message: 'The plan in this link is damaged.' }
 }
 
 export type InitialPlan = {

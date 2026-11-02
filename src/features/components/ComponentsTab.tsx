@@ -377,8 +377,8 @@ function ProductDetail({ product, onBack }: { product: CatalogProduct; onBack: (
       )}
       <p {...stylex.props(text.hint)}>
         {placing
-          ? `Choose a bay in the view to place a ${name}. Its width follows the bay.`
-          : `Place it, or drag the picture into the view.${twoSided ? ` It goes on the ${activeFace} face.` : ''}`}
+          ? `Choose a bay in the view for the ${name}. It takes the width of the bay.`
+          : `Place it, or drag the picture into the view.${twoSided ? ` It goes on the ${activeFace}.` : ''}`}
       </p>
     </div>
   )

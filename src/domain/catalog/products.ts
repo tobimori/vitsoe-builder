@@ -18,7 +18,7 @@ export const products: CatalogProduct[] = [
     id: 'shelf',
     name: 'Metal shelf',
     category: 'shelves',
-    description: 'Reversible powder-coated steel shelf in four useful depths.',
+    description: 'Powder-coated steel in four depths. It hangs either way up.',
     variants: [
       bayVariant(
         {
@@ -130,7 +130,7 @@ export const products: CatalogProduct[] = [
     id: 'shelf-with-clothes-rail',
     name: 'Metal shelf with clothes rail',
     category: 'shelves',
-    description: 'A 360 mm deep metal shelf with an integral hanging rail.',
+    description: 'A 360 mm deep shelf with a hanging rail underneath.',
     variants: [
       bayVariant(
         {
@@ -164,7 +164,7 @@ export const products: CatalogProduct[] = [
     id: 'bookend',
     name: 'Bookend',
     category: 'accessories',
-    description: 'A non-slip metal book support fitted to the left or right of a shelf.',
+    description: 'Holds books upright. It slides along the shelf and stays where you leave it.',
     compatibleHosts: [
       'shelf',
       'shelf-with-clothes-rail',
@@ -220,7 +220,7 @@ export const products: CatalogProduct[] = [
     id: 'sloping-shelf',
     name: 'Sloping shelf',
     category: 'shelves',
-    description: 'An angled metal display shelf for magazines, books or artwork.',
+    description: 'An angled shelf that shows magazines, books or pictures face out.',
     variants: [
       bayVariant(
         {
@@ -280,7 +280,7 @@ export const products: CatalogProduct[] = [
     id: 'vertical-panel',
     name: 'Vertical panel',
     category: 'shelves',
-    description: 'A lacquered MDF panel with aluminium sides for mounting a display.',
+    description: 'A lacquered MDF panel with aluminium sides. Pin things to it or hang pictures.',
     variants: [
       bayVariant(
         {
@@ -314,7 +314,8 @@ export const products: CatalogProduct[] = [
     id: 'wood-shelf',
     name: 'Wood shelf',
     category: 'shelves',
-    description: 'A reversible light-duty shelf in laminate or beech veneer with aluminium sides.',
+    description:
+      'Laminate or beech veneer with aluminium sides, for lighter loads. It hangs either way up.',
     variants: [
       bayVariant(
         {
@@ -350,7 +351,7 @@ export const products: CatalogProduct[] = [
     id: 'double-shelf',
     name: 'Double shelf',
     category: 'shelves',
-    description: 'A reversible double-layer shelf in laminate or beech veneer.',
+    description: 'A thicker shelf in laminate or beech veneer. It hangs either way up.',
     variants: [
       bayVariant(
         {
@@ -386,7 +387,7 @@ export const products: CatalogProduct[] = [
     id: 'desk-shelf',
     name: 'Desk shelf',
     category: 'tables',
-    description: 'A reversible work shelf with fixed surfaces 360 mm and 550 mm deep.',
+    description: 'A deep shelf to work at, hung at desk height or wherever suits you.',
     variants: [
       bayVariant(
         {
@@ -422,7 +423,8 @@ export const products: CatalogProduct[] = [
     id: 'table',
     name: 'Integrated table',
     category: 'tables',
-    description: 'A hanging table with one leg at 800/1200 mm depth and two legs at 1600 mm.',
+    description:
+      'A table hung from the E-tracks. The 800 and 1200 mm depths stand on one leg, the 1600 mm on two.',
     variants: [
       bayVariant(
         {
@@ -514,7 +516,7 @@ export const products: CatalogProduct[] = [
     id: 'shelf-with-drawer',
     name: 'Wood shelf with drawer',
     category: 'cabinets',
-    description: 'A shallow drawer within a wood shelf body.',
+    description: 'A wood shelf with a shallow drawer built in.',
     variants: [
       bayVariant(
         {
@@ -556,7 +558,7 @@ export const products: CatalogProduct[] = [
     id: 'cabinet',
     name: 'Cabinet with drawer',
     category: 'cabinets',
-    description: 'A full-height drawer cabinet for general storage.',
+    description: 'A cabinet with one deep drawer.',
     variants: [
       bayVariant(
         {
@@ -598,7 +600,7 @@ export const products: CatalogProduct[] = [
     id: 'lockable-drawer-cabinet',
     name: 'Lockable drawer cabinet',
     category: 'cabinets',
-    description: 'A locking drawer with adjustable rails for standard hanging files.',
+    description: 'A drawer that locks, with rails for hanging files.',
     variants: [
       bayVariant(
         {
@@ -640,7 +642,7 @@ export const products: CatalogProduct[] = [
     id: 'two-drawer-cabinet',
     name: 'Two-drawer cabinet',
     category: 'cabinets',
-    description: 'A 395 mm-high cabinet with two equal drawers.',
+    description: 'Two equal drawers in a 395 mm high cabinet.',
     variants: [
       bayVariant(
         {
@@ -682,7 +684,7 @@ export const products: CatalogProduct[] = [
     id: 'three-drawer-cabinet',
     name: 'Three-drawer cabinet',
     category: 'cabinets',
-    description: 'A 395 mm-high cabinet with three equal drawers.',
+    description: 'Three equal drawers in a 395 mm high cabinet.',
     variants: [
       bayVariant(
         {
@@ -724,7 +726,7 @@ export const products: CatalogProduct[] = [
     id: 'retractable-flap-cabinet',
     name: 'Cabinet with retractable flap',
     category: 'cabinets',
-    description: 'A cabinet whose front flap slides back into the body.',
+    description: 'The front flap slides back into the cabinet, out of the way.',
     variants: [
       bayVariant(
         {
@@ -766,7 +768,7 @@ export const products: CatalogProduct[] = [
     id: 'drop-front-cabinet',
     name: 'Cabinet with drop front',
     category: 'cabinets',
-    description: 'A downward-opening flap; a lock is offered without a separately listed price.',
+    description: 'The front folds down. A lock is available; ask Vitsœ for the price.',
     variants: [
       bayVariant(
         {
@@ -808,7 +810,7 @@ export const products: CatalogProduct[] = [
     id: 'open-back',
     name: 'Open cabinet back',
     category: 'accessories',
-    description: 'An optional cabinet opening for ventilation and cables.',
+    description: 'An opening in the cabinet back for cables and air.',
     compatibleHosts: [
       'cabinet',
       'lockable-drawer-cabinet',
@@ -850,7 +852,7 @@ export const products: CatalogProduct[] = [
     id: 'cabinet-internal-shelf',
     name: 'Cabinet internal shelf',
     category: 'accessories',
-    description: 'A black metal shelf for retractable-flap and drop-front cabinets.',
+    description: 'A black metal shelf for inside a flap or drop-front cabinet.',
     compatibleHosts: ['retractable-flap-cabinet', 'drop-front-cabinet'],
     variants: [
       bayVariant(
@@ -885,7 +887,7 @@ export const products: CatalogProduct[] = [
     id: 'drawer-divider',
     name: 'Drawer divider',
     category: 'accessories',
-    description: 'An adjustable black laminate insert for organising a cabinet drawer.',
+    description: 'Adjustable black laminate dividers that split a drawer into sections.',
     compatibleHosts: [
       'shelf-with-drawer',
       'cabinet',
@@ -926,7 +928,7 @@ export const products: CatalogProduct[] = [
     id: 'drawer-liner',
     name: 'Drawer liner',
     category: 'accessories',
-    description: 'A grey wool-felt mat; use one for each drawer.',
+    description: 'Grey wool felt to line the bottom of a drawer. One per drawer.',
     compatibleHosts: [
       'shelf-with-drawer',
       'cabinet',
@@ -967,7 +969,7 @@ export const products: CatalogProduct[] = [
     id: 'aluminium-tray',
     name: 'Aluminium tray',
     category: 'accessories',
-    description: 'Natural anodized tray for cabinets, desk shelves and double shelves.',
+    description: 'An anodised aluminium tray for cabinets, desk shelves and double shelves.',
     compatibleHosts: [
       'cabinet',
       'lockable-drawer-cabinet',
@@ -996,7 +998,7 @@ export const products: CatalogProduct[] = [
     id: 'pen-tray',
     name: 'Aluminium pen tray',
     category: 'accessories',
-    description: 'A natural anodized pen tray placed over the drawer divider.',
+    description: 'An anodised aluminium pen tray that sits on the drawer divider.',
     compatibleHosts: ['drawer-divider'],
     variants: [
       {

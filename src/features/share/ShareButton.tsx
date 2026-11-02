@@ -48,11 +48,11 @@ export function ShareButton({ style }: { style?: stylex.StyleXStyles }) {
     try {
       url = buildPlanUrl(selectors.plan.get(), window.location.href)
     } catch {
-      editor.trigger.notify({ notice: 'This plan is too large to share as a link.' })
+      editor.trigger.notify({ notice: 'This plan is too big to share as a link.' })
       return
     }
     if (await copyText(url))
-      editor.trigger.notify({ notice: 'Link copied. Anyone with it sees this plan.' })
+      editor.trigger.notify({ notice: 'Link copied. Anyone with the link can see this plan.' })
     else setFallbackUrl(url)
   }
 
@@ -70,7 +70,7 @@ export function ShareButton({ style }: { style?: stylex.StyleXStyles }) {
         <h2 id="share-title" {...stylex.props(text.title)}>
           Share this plan
         </h2>
-        <p {...stylex.props(text.hint)}>Your browser blocked copying. Copy the link yourself.</p>
+        <p {...stylex.props(text.hint)}>Your browser didn’t allow copying. Copy the link below.</p>
         <input
           ref={input}
           aria-label="Share link"

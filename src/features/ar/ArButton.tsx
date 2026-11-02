@@ -71,7 +71,7 @@ export function ArButton({
       const model = await exportPlanUsdz(selectors.plan.get(), catalog)
       setUrl(URL.createObjectURL(model))
     } catch {
-      editor.trigger.notify({ notice: 'The AR model could not be prepared.' })
+      editor.trigger.notify({ notice: 'The AR model couldn’t be made. Try again.' })
     } finally {
       setPreparing(false)
     }
@@ -100,10 +100,10 @@ export function ArButton({
         </h2>
         <p {...stylex.props(text.hint)}>
           {!iOS
-            ? 'Open this planner on an iPhone or iPad to place the system in your room, or download the model.'
+            ? 'Open this page on an iPhone or iPad to see the system in your room, or download the model.'
             : isWallMounted(plan.system.mountingType)
-              ? 'Scan the floor and a clear wall, then drag the system onto the wall and adjust its height.'
-              : 'Scan a clear area of floor, then place the system at full size.'}
+              ? 'Point the camera at the floor and a clear wall, then drag the system onto the wall and set its height.'
+              : 'Point the camera at a clear patch of floor, then place the system at full size.'}
         </p>
         {url && (
           <a

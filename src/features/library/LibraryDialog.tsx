@@ -273,7 +273,7 @@ function SavedPlanCard({ entry, current }: { entry: SavedPlan; current: boolean 
             )}
             <ActionButton
               variant="link"
-              onPress={() => newPlan(plan, `Copy of ${plan.name} started.`)}
+              onPress={() => newPlan(plan, `Made a copy of ${plan.name}.`)}
             >
               Copy
             </ActionButton>
@@ -359,8 +359,8 @@ export function LibraryDialog() {
         {shelf === 'plans' ? (
           <>
             <p {...stylex.props(text.body, styles.intro)}>
-              Plans are saved in this browser as you work. Share a plan’s link to open it on another
-              device.
+              Your plans save in this browser as you go. To open one on another device, share its
+              link.
             </p>
             <div {...stylex.props(styles.grid)}>
               {entries.map((entry) => (
@@ -371,8 +371,8 @@ export function LibraryDialog() {
         ) : (
           <>
             <p {...stylex.props(text.body, styles.intro)}>
-              Popular 606 systems, rebuilt from photographs in Vitsœ’s gallery and on Are.na. Start
-              a plan from one, then make it fit your wall.
+              Real 606 systems from Vitsœ’s gallery and Are.na, redrawn as plans. Start from one and
+              change it to suit your wall.
             </p>
             <div {...stylex.props(styles.grid, styles.pairs)}>
               {inspirations.map((inspiration) => (

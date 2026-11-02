@@ -133,9 +133,9 @@ export function PartsList() {
       </div>
       <p {...stylex.props(text.hint)}>
         {unpriced > 0 &&
-          `${plural(unpriced, 'part')} without a price ${unpriced === 1 ? 'is' : 'are'} not included. `}
+          `${plural(unpriced, 'part')} without a price ${unpriced === 1 ? 'isn’t' : 'aren’t'} included. `}
         {productPriceSource.name}, Germany, including {Math.round(productPriceSource.vatRate * 100)}
-        % VAT. Vitsœ confirms the final specification.{' '}
+        % VAT. Vitsœ confirms the final plan with you before you order.{' '}
         <a
           href="https://www.vitsoe.com/de/606/components"
           target="_blank"

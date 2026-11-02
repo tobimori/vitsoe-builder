@@ -76,8 +76,8 @@ const recipes: Recipe[] = [
     id: 'library-sideboard',
     name: 'Library over a sideboard',
     room: 'Living room',
-    description: 'Four wide bays: a row of cabinets, with five rows of books above.',
-    source: { label: 'Are.na, the most saved 606', url: 'https://www.are.na/block/2305075' },
+    description: 'Cabinets along the bottom and five rows of books above, four bays wide.',
+    source: { label: 'Most saved on Are.na', url: 'https://www.are.na/block/2305075' },
     photo: arenaPhoto('2305075/original_98db8a3a80fc9696c48109a0c957c331.jpg'),
     mountingType: 'wall',
     bays: [912, 912, 912, 912],
@@ -90,7 +90,7 @@ const recipes: Recipe[] = [
     id: 'media-wall',
     name: 'Media wall',
     room: 'Living room',
-    description: 'Drawers along the wall, books above, and room for a television in the middle.',
+    description: 'Drawers along the wall, books above and a gap for the television.',
     source: {
       label: 'Vitsœ gallery, living room',
       url: 'https://www.vitsoe.com/gb/606/gallery?category=living-room',
@@ -110,7 +110,8 @@ const recipes: Recipe[] = [
     id: 'kitchen',
     name: 'Kitchen shelves',
     room: 'Kitchen & dining',
-    description: 'Cookbooks low and deep, then jars, glasses and cups at arm’s reach.',
+    description:
+      'Deep shelves for cookbooks at the bottom, narrower ones for jars and glasses above.',
     source: {
       label: 'Vitsœ gallery, kitchen & dining',
       url: 'https://www.vitsoe.com/gb/606/gallery?category=kitchen-dining',
@@ -145,7 +146,7 @@ const recipes: Recipe[] = [
     id: 'bookcase',
     name: 'Bookcase by a door',
     room: 'Bookshelves',
-    description: 'Nine rows of books from the floor up, on posts against the wall.',
+    description: 'Nine rows of books, from the floor almost to the ceiling.',
     source: {
       label: 'Vitsœ gallery, bookshelves',
       url: 'https://www.vitsoe.com/gb/606/gallery?category=books',
@@ -164,7 +165,7 @@ const recipes: Recipe[] = [
     room: 'Living room',
     description: 'One narrow bay of open shelves between two windows.',
     source: {
-      label: 'Are.na, the second most saved 606',
+      label: 'Second most saved on Are.na',
       url: 'https://www.are.na/block/12049373',
     },
     photo: arenaPhoto('12049373/original_ccb043bf8ba353bdb9d5cf11b2ada6c7.png'),
@@ -190,8 +191,8 @@ const recipes: Recipe[] = [
     id: 'magazines',
     name: 'Magazine display',
     room: 'Retail & restaurant',
-    description: 'Covers face out on sloping shelves, between shelves of books.',
-    source: { label: 'Are.na, a design bookshop', url: 'https://www.are.na/block/1338213' },
+    description: 'Magazines face out on sloping shelves, with books above and below.',
+    source: { label: 'A design bookshop, on Are.na', url: 'https://www.are.na/block/1338213' },
     photo: arenaPhoto('1338213/original_cb25f55d4853a4a9f94094b0175b95fb.jpg'),
     mountingType: 'wall',
     bays: [912, 912, 912],
@@ -221,7 +222,7 @@ const recipes: Recipe[] = [
     id: 'bedside',
     name: 'Bedside drawers',
     room: 'Bedroom',
-    description: 'A single black cabinet with two drawers, hung beside the bed.',
+    description: 'One black two-drawer cabinet on short E-tracks, next to the bed.',
     source: {
       label: 'Vitsœ gallery, bedroom',
       url: 'https://www.vitsoe.com/gb/606/gallery?category=bedroom-wardrobe',

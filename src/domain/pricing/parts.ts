@@ -53,7 +53,7 @@ function trackLines(plan: Plan, catalog: Catalog): PartsListLine[] {
     lines.push({
       ...structureLine('track-cutting', 'track-cutting-charge', 'E-track cutting charge', cuts),
       id: 'track-cuts',
-      note: 'Estimate per cut; the published price does not state its charging unit.',
+      note: 'Estimated per cut.',
     })
   }
 
@@ -122,7 +122,7 @@ function structureLines(plan: Plan, catalog: Catalog): PartsListLine[] {
         id: 'h-post-up-to-1870',
         label: 'H-post · up to 1870 mm',
         quantity: supportCount,
-        note: 'The published price bands start at 1910 mm, above the freestanding limit; planner pricing required.',
+        note: 'Price on request from Vitsœ.',
       },
       structureLine(
         'stabilising-foot',

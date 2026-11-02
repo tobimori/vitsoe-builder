@@ -71,7 +71,7 @@ export function FinishSection() {
         />
       </div>
       <p {...stylex.props(text.hint)}>
-        Components made in beech use it. Steel and aluminium parts keep the colour.
+        Applies to components that come in beech. Steel and aluminium parts stay in the colour.
       </p>
       {overrides > 0 && (
         <ActionButton

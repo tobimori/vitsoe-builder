@@ -272,13 +272,13 @@ export function placeComponent(
   request: PlacementRequest,
 ): PlaceComponentResult {
   const product = catalog.product(request.productId)
-  if (!product) return { ok: false, message: 'That component is not in the catalogue.' }
+  if (!product) return { ok: false, message: 'That component isn’t in the catalogue.' }
 
   const accessory = isAccessory(product)
   if (accessory && !(request.host && product.compatibleHosts?.includes(request.host.productId))) {
     return {
       ok: false,
-      message: `Select a compatible component before adding ${product.name.toLowerCase()}.`,
+      message: `Select a component to add the ${product.name.toLowerCase()} to.`,
     }
   }
 
@@ -288,9 +288,9 @@ export function placeComponent(
   return {
     ok: false,
     message: accessory
-      ? 'That accessory does not fit its selected host.'
+      ? 'That doesn’t fit the selected component.'
       : isIntegratedTable(product.id)
-        ? 'Clear a matching bay around the 740 mm tabletop, or choose the other table width.'
-        : 'There is no compatible clear space for this component.',
+        ? 'No bay is clear at table height. Make room around 740 mm, or try the other width.'
+        : 'There’s no free space for this component.',
   }
 }

@@ -83,8 +83,8 @@ export function SelectionInspector({ ids }: { ids: string[] }) {
       <Section>
         <p {...stylex.props(text.hint)}>
           {touchScreen
-            ? 'Select a component in Layers to work on it alone.'
-            : 'Shift-click or Cmd-click a component to add it or take it out. Copy, cut, and paste them with the usual shortcuts.'}
+            ? 'Tap a component in Layers to select just that one.'
+            : 'Shift-click a component to add it to the selection or take it out. Copy, cut and paste work as usual.'}
         </p>
       </Section>
     </>

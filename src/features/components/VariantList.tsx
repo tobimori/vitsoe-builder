@@ -49,7 +49,8 @@ export function variantFit(
 ): string | null {
   const { bays } = plan.system
   if (isAccessory(product)) {
-    if (!host || !product.compatibleHosts?.includes(host.productId)) return 'Select a host first'
+    if (!host || !product.compatibleHosts?.includes(host.productId))
+      return 'Select what it fits onto first'
     const hostWidth = bays[host.bayIndex]?.centreWidth ?? 667
     return variant.width <= BAY_USABLE_WIDTH[hostWidth] ? null : 'Too wide for this bay'
   }

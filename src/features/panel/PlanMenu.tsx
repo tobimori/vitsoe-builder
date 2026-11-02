@@ -78,7 +78,7 @@ async function importPlan(file: File | undefined) {
 
   const plan = parsePlan(await file.text(), catalog)
   if (plan) newPlan(plan, `${plan.name} imported.`)
-  else editor.trigger.notify({ notice: 'This file is not a valid 606 plan.' })
+  else editor.trigger.notify({ notice: 'This file isn’t a 606 plan.' })
 }
 
 function exportPlan() {
@@ -159,7 +159,7 @@ export function PlanMenu() {
           Delete this plan?
         </h2>
         <p {...stylex.props(text.hint)}>
-          {name} is removed from this browser. Links you shared still open it.
+          {name} will be removed from this browser. Links you’ve shared will still open it.
         </p>
         <div {...stylex.props(styles.actions)}>
           <ActionButton

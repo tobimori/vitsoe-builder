@@ -170,7 +170,7 @@ export function resizeBay(
     const names = [...new Set(missing.map((entry) => entry.name))].join(', ')
     return {
       ok: false,
-      message: `${names} ${missing.length === 1 ? 'has' : 'have'} no matching ${centreWidth} mm version.`,
+      message: `${names} ${missing.length === 1 ? 'doesn’t' : 'don’t'} come in a ${centreWidth} mm width.`,
       itemIds: missing.map((entry) => entry.id),
     }
   }

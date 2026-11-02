@@ -144,8 +144,8 @@ export function ItemInspector({ item }: { item: PlanItem }) {
           </Rows>
           <p {...stylex.props(text.hint)}>
             {touchScreen
-              ? 'Drag it along its shelf, or onto another shelf.'
-              : 'Drag it along its shelf or onto another shelf, or use the left and right arrow keys. Hold Alt while you drag to make a copy.'}
+              ? 'Drag it along the shelf or onto another one.'
+              : 'Drag it along the shelf or onto another one, or use the arrow keys. Hold Alt as you drag to copy it.'}
           </p>
         </Section>
       )}
@@ -189,7 +189,7 @@ export function ItemInspector({ item }: { item: PlanItem }) {
           <p {...stylex.props(text.hint)}>
             {touchScreen
               ? 'Drag it in the view, or choose a bay and height here.'
-              : 'Drag it in the view or use the arrow keys. Hold Alt while you drag to make a copy.'}
+              : 'Drag it in the view or use the arrow keys. Hold Alt as you drag to copy it.'}
           </p>
         </Section>
       )}

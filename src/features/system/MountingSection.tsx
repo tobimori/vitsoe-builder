@@ -15,23 +15,24 @@ const mountings: { value: MountingType; label: string; description: string }[] =
   {
     value: 'wall',
     label: 'Wall-mounted',
-    description: 'E-tracks are fixed to a solid wall and carry every component.',
+    description: 'E-tracks screwed to a solid wall carry everything.',
   },
   {
     value: 'semi-wall',
     label: 'Semi wall-mounted',
     description:
-      'Posts stand on the floor and are braced to the wall, for walls that cannot take the load.',
+      'Posts stand on the floor and are tied to the wall, for walls that can’t take the weight.',
   },
   {
     value: 'floor-to-ceiling',
     label: 'Floor-to-ceiling',
-    description: 'Posts are compressed between floor and ceiling. Components can face either side.',
+    description: 'Posts are held between floor and ceiling. Components can face either side.',
   },
   {
     value: 'freestanding',
     label: 'Freestanding',
-    description: 'Posts stand on feet without fixings. Components can face either side.',
+    description:
+      'Posts stand on feet, with nothing fixed to the wall. Components can face either side.',
   },
 ]
 

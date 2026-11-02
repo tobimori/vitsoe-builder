@@ -55,8 +55,8 @@ export function StructureSection() {
       </Rows>
       {mountingType === 'semi-wall' && (
         <p {...stylex.props(text.hint)}>
-          Set the distance from the back wall to the bracket reach
-          {options.extensionBolts ? ' plus 65 mm' : ''}.
+          The brackets set how far the posts stand from the wall
+          {options.extensionBolts ? ', plus 65 mm for the extensions' : ''}.
         </p>
       )}
     </Section>

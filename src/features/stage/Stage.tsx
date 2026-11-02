@@ -99,7 +99,7 @@ function DragStatus() {
     twoSided && `Drag onto ${otherFace} for the other side.`,
   ]
   const message = !drag.valid
-    ? 'It does not fit here'
+    ? 'It doesn’t fit here'
     : drag.face !== activeFace
       ? `Release to ${action} it to the ${drag.face}, or hold to turn round`
       : drag.duplicate

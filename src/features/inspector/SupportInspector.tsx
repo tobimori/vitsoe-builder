@@ -24,7 +24,7 @@ export function SupportInspector({ supportIndex }: { supportIndex: number }) {
     <>
       <InspectorHeader
         title={`Support ${supportIndex + 1}`}
-        subtitle="The supports move together, so the bays keep their widths."
+        subtitle="All supports move together, so the bays keep their widths."
       />
       <Section title="Position">
         <Rows>

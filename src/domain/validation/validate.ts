@@ -73,37 +73,32 @@ function structureIssues({ plan, catalog, tracks }: Context): ValidationIssue[] 
     system.trackMode === 'manual' &&
     system.mountHeight + system.railHeight > room.ceilingHeight
   ) {
-    issues.push(error('room-boundary', 'The E-tracks extend above the ceiling.'))
+    issues.push(error('room-boundary', 'The E-tracks go above the ceiling.'))
   }
 
   if (tracks.some((track) => track.top > maximumTrackTop(plan))) {
-    issues.push(
-      error('track-height', 'The required E-track stack is taller than the available room height.'),
-    )
+    issues.push(error('track-height', 'The E-tracks this needs are taller than the room.'))
   }
 
   if (tracks.some((track) => track.joins > 0)) {
     issues.push(
       advisory(
         'track-join',
-        'Stacked E-tracks omit one hole at a join. A Vitsœ planner must confirm the exact join layout.',
+        'One hole is lost where two E-tracks meet. Vitsœ will check where the joins go.',
       ),
     )
   }
 
   if (system.trackMode === 'manual' && system.railHeight === 110) {
     issues.push(
-      advisory(
-        'track-special',
-        'The 110 mm shelf-height profile is restricted to light loads and flush shelf applications.',
-      ),
+      advisory('track-special', 'The 110 mm shelf-height E-track is for light loads only.'),
     )
   }
   if (system.trackMode === 'manual' && system.railHeight === 395) {
     issues.push(
       advisory(
         'track-special',
-        'The 395 mm cabinet-height profile cannot sit directly below another E-track.',
+        'The 395 mm cabinet-height E-track can’t go directly below another E-track.',
       ),
     )
   }
@@ -115,7 +110,7 @@ function structureIssues({ plan, catalog, tracks }: Context): ValidationIssue[] 
     issues.push(
       advisory(
         'stability',
-        'Stabilising feet are optional for this structure; a planner should confirm them for the floor and loading.',
+        'Without stabilising feet, ask Vitsœ whether your floor and load need them.',
       ),
     )
   }
@@ -128,41 +123,33 @@ function structureIssues({ plan, catalog, tracks }: Context): ValidationIssue[] 
       issues.push(
         advisory(
           'stability',
-          `Set the supports ${minimum}–${maximum} mm from the wall to match the selected brackets.`,
+          `These brackets need the posts ${minimum}–${maximum} mm from the wall.`,
         ),
       )
     }
   }
 
   if (system.mountingType === 'floor-to-ceiling' && room.ceilingHeight > 3500) {
-    issues.push(
-      advisory(
-        'stability',
-        'The published guide does not specify the tall H-post cross-rail layout; planner confirmation is required.',
-      ),
-    )
+    issues.push(advisory('stability', 'Posts this tall need a cross-rail layout from Vitsœ.'))
   }
 
   if (system.mountingType === 'semi-wall' && (postHeight(plan, tracks) ?? 0) > 3500) {
     issues.push(
       advisory(
         'stability',
-        'This semi-wall post height exceeds the supplied German planning-guide table; planner confirmation is required.',
+        'Posts this tall go beyond Vitsœ’s planning guide. Ask Vitsœ to check them.',
       ),
     )
   }
 
   if (system.mountingType === 'floor-to-ceiling' && room.ceilingHeight > 5400) {
     issues.push(
-      advisory(
-        'stability',
-        'Compressed structures above 5400 mm exceed the verified catalogue bands; planner confirmation is required.',
-      ),
+      advisory('stability', 'Floor-to-ceiling systems over 5400 mm need checking by Vitsœ.'),
     )
   }
 
   if (roomBoundaryOverflow(plan, catalog) > 0) {
-    issues.push(error('room-boundary', 'The system extends beyond the room boundary.'))
+    issues.push(error('room-boundary', 'The system doesn’t fit in the room.'))
   }
 
   return issues
@@ -197,7 +184,7 @@ function componentIssues(context: Context, component: PlacedComponent): Validati
       issues.push(
         error(
           'mounting-incompatible',
-          `${product.name} must be attached to a compatible component on the same face.`,
+          `${product.name} has nothing to fit onto on this side.`,
           ids,
         ),
       )
@@ -208,16 +195,14 @@ function componentIssues(context: Context, component: PlacedComponent): Validati
   const pinHeight = carrierHeight(item, plan)
 
   if (envelope.start < 0 || envelope.start + envelope.size > room.ceilingHeight) {
-    issues.push(error('room-boundary', 'This component extends above or below the room.', ids))
+    issues.push(error('room-boundary', 'This component goes through the floor or ceiling.', ids))
   }
 
   if (
     system.trackMode === 'manual' &&
     (pinHeight < system.mountHeight || pinHeight > system.mountHeight + system.railHeight)
   ) {
-    issues.push(
-      error('room-boundary', 'This component is outside the available E-track slots.', ids),
-    )
+    issues.push(error('room-boundary', 'This component is beyond the end of the E-tracks.', ids))
   }
 
   if (
@@ -227,20 +212,18 @@ function componentIssues(context: Context, component: PlacedComponent): Validati
     issues.push(
       error(
         'freestanding-height',
-        `Freestanding components must stay below ${FREESTANDING_MAX_HEIGHT} mm.`,
+        `Freestanding systems end at ${FREESTANDING_MAX_HEIGHT} mm. Move this component lower.`,
         ids,
       ),
     )
   }
 
   if (!allowedFaces(plan).includes(item.face) || !variant.faces.includes(item.face)) {
-    issues.push(error('invalid-face', 'This component cannot be fitted on that face.', ids))
+    issues.push(error('invalid-face', 'This component can’t go on this side.', ids))
   }
 
   if (variant.mountingTypes && !variant.mountingTypes.includes(system.mountingType)) {
-    issues.push(
-      error('mounting-incompatible', 'This component is incompatible with the support type.', ids),
-    )
+    issues.push(error('mounting-incompatible', 'This component isn’t made for this mounting.', ids))
   }
 
   if (!isAccessory(product)) {
@@ -256,7 +239,7 @@ function componentIssues(context: Context, component: PlacedComponent): Validati
       issues.push(
         error(
           'track-slot',
-          'This component cannot use a safe E-track hole at a cut edge or join.',
+          'This component is too close to a cut or join in the E-track. Move it up or down.',
           ids,
         ),
       )
@@ -264,9 +247,7 @@ function componentIssues(context: Context, component: PlacedComponent): Validati
   }
 
   if (!variant.finishes.includes(resolveItemFinish(system.finish, item, catalog).finish)) {
-    issues.push(
-      error('finish-incompatible', 'This finish is unavailable for the selected component.', ids),
-    )
+    issues.push(error('finish-incompatible', 'This component doesn’t come in that finish.', ids))
   }
 
   return issues
@@ -292,7 +273,7 @@ function collisionIssues(
         Math.abs(a.offset - b.offset) < (a.width + b.width) / 2
       ) {
         issues.push(
-          error('item-collision', 'Two bookends stand in the same place.', [a.item.id, b.item.id]),
+          error('item-collision', 'Two bookends are in the same place.', [a.item.id, b.item.id]),
         )
       }
     }
@@ -305,9 +286,7 @@ function collisionIssues(
         a.item.face === b.item.face &&
         itemsCollide(a.item, a.variant, b.item, b.variant, plan)
       ) {
-        issues.push(
-          error('item-collision', 'Two components occupy the same space.', [a.item.id, b.item.id]),
-        )
+        issues.push(error('item-collision', 'Two components overlap.', [a.item.id, b.item.id]))
       }
     }
   })
@@ -327,7 +306,7 @@ function loadBalanceIssues({ plan, catalog }: Context): ValidationIssue[] {
   const back = load('back')
 
   return front === 0 || back === 0 || Math.max(front, back) > Math.min(front, back) * 2
-    ? [advisory('balanced-load', 'Balance freestanding loads across the front and back faces.')]
+    ? [advisory('balanced-load', 'Put a similar load on both sides so the system stays steady.')]
     : []
 }
 
@@ -344,7 +323,7 @@ export function validatePlan(plan: Plan, catalog: Catalog): ValidationIssue[] {
     const component = components.find((entry) => entry.item === item)
     return component && fitsBay(context, component)
       ? componentIssues(context, component)
-      : [error('bay-fit', 'This component does not fit its selected bay.', [item.id])]
+      : [error('bay-fit', 'This component doesn’t fit its bay.', [item.id])]
   })
 
   return [

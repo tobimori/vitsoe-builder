@@ -48,7 +48,10 @@ export function PositionFields() {
         onChange={(rest) => move({ offset: free - rest })}
       />
       {mountingType === 'semi-wall' && (
-        <StaticField label="From the wall" value={`${placement.distance} mm, by the brackets`} />
+        <StaticField
+          label="From the wall"
+          value={`${placement.distance} mm, set by the brackets`}
+        />
       )}
       {!isWallMounted(mountingType) && (
         <NumberField
