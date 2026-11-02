@@ -7,7 +7,7 @@ import {
   bookendPosition,
   slidesOnHost,
 } from '../../domain/placement/bookends'
-import { VERTICAL_PITCH } from '../../domain/placement/grid'
+import { holeOrigin, VERTICAL_PITCH } from '../../domain/placement/grid'
 import { finishLabel, resolveItemFinish } from '../../domain/plan/finish'
 import { allowedFaces, otherFace } from '../../domain/plan/system'
 import type { PlanItem } from '../../domain/plan/types'
@@ -178,7 +178,7 @@ export function ItemInspector({ item }: { item: PlanItem }) {
               <NumberField
                 label="Height"
                 value={item.height}
-                min={plan.system.mountHeight % VERTICAL_PITCH}
+                min={holeOrigin(plan) % VERTICAL_PITCH}
                 max={plan.room.ceilingHeight}
                 step={VERTICAL_PITCH}
                 stepper

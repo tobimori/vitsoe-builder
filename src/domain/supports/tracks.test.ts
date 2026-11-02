@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test'
 import { catalog } from '../catalog/catalog'
 import { initialPlan } from '../plan/defaults'
-import { snapPinHeight } from '../placement/grid'
+import { holeOrigin, snapPinHeight } from '../placement/grid'
 import type { Plan } from '../plan/types'
 import {
   deriveSupportTrackPlans,
@@ -96,13 +96,14 @@ describe('E-track hole grid', () => {
   it('snaps attachment pins to the 70 mm E-track grid from the track origin', () => {
     const plan = copy()
     plan.system.mountHeight = 345
-    expect(snapPinHeight(701, plan)).toBe(695)
-    expect(snapPinHeight(735, plan)).toBe(765)
+    expect(snapPinHeight(701, plan)).toBe(730)
+    expect(snapPinHeight(770, plan)).toBe(800)
   })
 
   it('extends an automatic track below a baseline carrier and omits unsafe join holes', () => {
     const plan = copy()
     const { mountHeight } = plan.system
+    const origin = holeOrigin(plan)
     plan.system.bays = [{ id: 'narrow', centreWidth: 667 }]
     plan.system.items = [
       {
@@ -110,14 +111,14 @@ describe('E-track hole grid', () => {
         productId: 'shelf',
         variantId: 'steel-667-220',
         bayIndex: 0,
-        height: mountHeight,
+        height: origin - 70,
         face: 'front',
         finish: 'off-white',
       },
     ]
     const track = deriveSupportTrackPlans(plan, catalog)[0]!
-    expect(track.bottom).toBe(mountHeight - 10)
-    expect(supportTrackAcceptsPin(track, mountHeight, mountHeight)).toBe(true)
+    expect(track.bottom).toBe(mountHeight - 70)
+    expect(supportTrackAcceptsPin(track, origin - 70, origin)).toBe(true)
 
     const joined = {
       ...track,
@@ -128,8 +129,8 @@ describe('E-track hole grid', () => {
         { stockLength: 570, installedLength: 570, cut: false, estimatedPriceEur: 0 },
       ],
     }
-    const holes = trackHoleHeights(joined, 345)
-    expect(holes).not.toContain(345)
+    const holes = trackHoleHeights(joined, origin)
+    expect(holes[0]).toBe(380)
     expect(holes.every((height) => Math.abs(height - 915) >= 10)).toBe(true)
     expect(holes.at(-1)).toBeLessThanOrEqual(1475)
   })

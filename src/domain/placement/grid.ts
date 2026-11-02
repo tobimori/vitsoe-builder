@@ -5,13 +5,26 @@ import type { BayWidth } from '../types'
 /** E-track holes repeat every 70 mm. */
 export const VERTICAL_PITCH = 70
 
+/**
+ * The first hole sits 35 mm above the lower end of an E-track. With the tracks at
+ * Vitsœ's usual 345 mm, a cabinet's top then meets the 740 mm table height, as the
+ * planning guide promises (UK/EU, p14):
+ * https://www.vitsoe.com/site/download/3563/606_Universal_Shelving_System_planning_guide_UK_EU_RW.pdf
+ */
+export const FIRST_HOLE = 35
+
+/** The height of the lowest hole in the system's E-tracks; every pin sits a whole pitch above it. */
+export function holeOrigin(plan: Plan) {
+  return plan.system.mountHeight + FIRST_HOLE
+}
+
 export const BAY_USABLE_WIDTH: Record<BayWidth, number> = { 667: 655, 912: 900 }
 
 /** Integrated tables stand on the floor with a fixed tabletop height. */
 export const TABLETOP_HEIGHT = 740
 
 export function snapPinHeight(height: number, plan: Plan) {
-  const origin = plan.system.mountHeight
+  const origin = holeOrigin(plan)
   return origin + Math.round((height - origin) / VERTICAL_PITCH) * VERTICAL_PITCH
 }
 
@@ -39,6 +52,6 @@ export function carrierHeight(item: PlanItem, plan: Plan) {
   if (!isIntegratedTable(item.productId)) return item.height
 
   const highestCarrier = TABLETOP_HEIGHT - 35
-  const { mountHeight } = plan.system
-  return mountHeight + Math.floor((highestCarrier - mountHeight) / VERTICAL_PITCH) * VERTICAL_PITCH
+  const origin = holeOrigin(plan)
+  return origin + Math.floor((highestCarrier - origin) / VERTICAL_PITCH) * VERTICAL_PITCH
 }

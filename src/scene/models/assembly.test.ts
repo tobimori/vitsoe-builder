@@ -96,7 +96,7 @@ describe('configured assembly and AR export', () => {
     }
   })
 
-  it('renders a whole hole below the original track baseline when a low carrier needs edge clearance', () => {
+  it('lowers the track by a whole pitch for a carrier below its first hole', () => {
     const plan = configuration()
     const product = fullCatalog.product('shelf')!
     plan.system.items = [
@@ -105,13 +105,13 @@ describe('configured assembly and AR export', () => {
         productId: product.id,
         variantId: product.variants[0]!.id,
         bayIndex: 0,
-        height: 345,
+        height: 310,
         face: 'front',
         finish: 'off-white',
       },
     ]
     const track = deriveSupportTrackPlans(plan, fullCatalog)[0]!
-    expect(track.bottom).toBe(335)
+    expect(track.bottom).toBe(275)
     const assembly = buildAssembly(plan, fullCatalog)
     const support = assembly.children.find((child) => child.userData.supportIndex === 0)!
     const fins: Mesh[] = []
@@ -119,13 +119,13 @@ describe('configured assembly and AR export', () => {
       if (object.name === 'Perforated anodised E-profile fin') fins.push(object as Mesh)
     })
     const ray = new Raycaster(
-      new Vector3(-1.579 / 2 - 0.03, 0.345, 0.011),
+      new Vector3(-1.579 / 2 - 0.03, 0.31, 0.011),
       new Vector3(1, 0, 0),
       0,
       0.06,
     )
     expect(ray.intersectObjects(fins)).toHaveLength(0)
-    ray.ray.origin.y = 0.339
+    ray.ray.origin.y = 0.304
     expect(ray.intersectObjects(fins).length).toBeGreaterThan(0)
     disposeAssembly(assembly)
   })
@@ -245,7 +245,7 @@ describe('configured assembly and AR export', () => {
         productId: product.id,
         variantId: variant.id,
         bayIndex,
-        height: 975,
+        height: 1010,
         face,
         finish: 'off-white',
       }))
@@ -268,7 +268,7 @@ describe('configured assembly and AR export', () => {
       })
       const depths = mountingDepths(mountingType === 'freestanding')
       const pinZ = (face === 'front' ? depths.frontPin : depths.backPin) / 1000
-      const ray = new Raycaster(new Vector3(-0.03, 0.975, pinZ), new Vector3(1, 0, 0), 0, 0.06)
+      const ray = new Raycaster(new Vector3(-0.03, 1.01, pinZ), new Vector3(1, 0, 0), 0, 0.06)
       expect(ray.intersectObjects(fins)).toHaveLength(0)
       // The same ray one centimetre below is blocked: this is a drilled opening,
       // not an absent fin or a cosmetic dark mark.

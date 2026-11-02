@@ -3,7 +3,7 @@ import { isAccessory } from '../catalog/catalog'
 import type { CatalogProduct, ProductVariant } from '../catalog/types'
 import { itemsCollide, verticalEnvelope } from '../placement/envelope'
 import { bookendPosition, slidesOnHost } from '../placement/bookends'
-import { BAY_USABLE_WIDTH, carrierHeight } from '../placement/grid'
+import { BAY_USABLE_WIDTH, carrierHeight, holeOrigin } from '../placement/grid'
 import { resolveItemFinish } from '../plan/finish'
 import { allowedFaces, isWallMounted, wallTieDistance } from '../plan/system'
 import type { Plan, PlanItem } from '../plan/types'
@@ -234,7 +234,7 @@ function componentIssues(context: Context, component: PlacedComponent): Validati
     )
     if (
       adjacent.length !== 2 ||
-      adjacent.some((track) => !supportTrackAcceptsPin(track, pinHeight, system.mountHeight))
+      adjacent.some((track) => !supportTrackAcceptsPin(track, pinHeight, holeOrigin(plan)))
     ) {
       issues.push(
         error(

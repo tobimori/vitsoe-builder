@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import type { Plan } from '../../domain/plan/types'
 import { isTwoSided } from '../../domain/plan/system'
+import { holeOrigin } from '../../domain/placement/grid'
 import { trackHoleHeights, usesHPosts, type SupportTrackPlan } from '../../domain/supports/tracks'
 import { aluminium, polishedMetal, rubber, finishMaterial } from './materials'
 import { box, cylinder, mesh, mm, plate, roundedBox } from './primitives'
@@ -325,7 +326,7 @@ export function addSupports(
     const depths = mountingDepths(hPost, !floorMounted)
     for (const track of tracks.filter((entry) => entry.supportIndex === index)) {
       const lengths = track.segments.map((segment) => segment.installedLength)
-      const holes = trackHoleHeights(track, system.mountHeight)
+      const holes = trackHoleHeights(track, holeOrigin(plan))
       if (track.face === 'front')
         eTrack(support, x, mm(track.bottom), lengths, mm(depths.frontTrack), holes)
       else if (doubleSided)

@@ -6,7 +6,7 @@ import { roomBoundaryOverflow } from '../supports/footprint'
 import { itemsHaveTrackHeightError } from '../supports/tracks'
 import type { Face } from '../types'
 import { validatePlan } from '../validation/validate'
-import { snapPinHeight, TABLETOP_HEIGHT, VERTICAL_PITCH } from './grid'
+import { holeOrigin, snapPinHeight, TABLETOP_HEIGHT, VERTICAL_PITCH } from './grid'
 
 export interface Proposal {
   plan: Plan
@@ -213,8 +213,9 @@ export function findAvailablePlacement(
   const accessory = isAccessory(product)
   if (accessory && (!host || !product.compatibleHosts?.includes(host.productId))) return undefined
 
-  const { bays, mountHeight } = plan.system
+  const { bays } = plan.system
   const { ceilingHeight } = plan.room
+  const origin = holeOrigin(plan)
 
   const fitsBay = (index: number) => {
     const width = bays[index]?.centreWidth
@@ -238,8 +239,8 @@ export function findAvailablePlacement(
       : isIntegratedTable(productId)
         ? [TABLETOP_HEIGHT]
         : Array.from(
-            { length: Math.max(0, Math.floor((ceilingHeight - mountHeight) / VERTICAL_PITCH)) },
-            (_, index) => mountHeight + VERTICAL_PITCH * (2 + index),
+            { length: Math.max(0, Math.floor((ceilingHeight - origin) / VERTICAL_PITCH)) },
+            (_, index) => origin + VERTICAL_PITCH * (1 + index),
           ).filter((height) => height <= ceilingHeight)
 
   for (const bayIndex of bayIndices) {

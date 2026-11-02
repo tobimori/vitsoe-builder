@@ -3,7 +3,7 @@ import { isAccessory } from '../catalog/catalog'
 import { isCabinet } from '../catalog/families'
 import { findStructureVariant, structurePrice } from '../catalog/structure'
 import { verticalEnvelope } from '../placement/envelope'
-import { carrierHeight, VERTICAL_PITCH } from '../placement/grid'
+import { carrierHeight, FIRST_HOLE, VERTICAL_PITCH } from '../placement/grid'
 import { allowedFaces } from '../plan/system'
 import type { Plan, PlanItem } from '../plan/types'
 import type { Face, Millimetres } from '../types'
@@ -209,17 +209,12 @@ export function deriveSupportTrackPlans(plan: Plan, catalog: Catalog): SupportTr
 
       const pinHeights = carried.map((item) => carrierHeight(item, plan))
 
-      const lowestPin = pinHeights.length ? Math.min(...pinHeights) : normalBottom
       const highestPin = pinHeights.length ? Math.max(...pinHeights) : normalBottom + 470
-      const carrierBottom = Math.max(0, Math.min(normalBottom, lowestPin))
-
-      const bottom = !automatic
-        ? system.mountHeight
-        : pinHeights.length > 0 && lowestPin <= normalBottom
-          ? Math.max(0, carrierBottom - TRACK_EDGE_ALLOWANCE)
-          : carrierBottom
+      const bottom = automatic
+        ? Math.max(0, Math.min(normalBottom, ...pinHeights.map((pin) => pin - FIRST_HOLE)))
+        : system.mountHeight
       const requiredLength = automatic
-        ? Math.max(570, highestPin - carrierBottom + 100)
+        ? Math.max(570, highestPin - bottom + 100)
         : system.railHeight
       const availableHeight = automatic
         ? maximumTop - bottom

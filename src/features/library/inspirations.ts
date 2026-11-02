@@ -82,8 +82,8 @@ const recipes: Recipe[] = [
     mountingType: 'wall',
     bays: [912, 912, 912, 912],
     front: Array.from({ length: 4 }, () => [
-      ...cabinet(905),
-      ...shelves(220)(1255, 1535, 1815, 2095, 2375),
+      ...cabinet(940),
+      ...shelves(220)(1290, 1570, 1850, 2130, 2410),
     ]),
   },
   {
@@ -99,11 +99,11 @@ const recipes: Recipe[] = [
     mountingType: 'wall',
     bays: [912, 912, 912, 912, 912],
     front: [
-      [...twoDrawers(625), ...shelves(220)(1045, 1395, 1745, 2025)],
-      [...flapCabinet(625), ...shelves(220)(1395, 1745, 2025)],
-      [...twoDrawers(625), ...shelves(220)(1395, 1745, 2025)],
-      [...twoDrawers(625), ...shelves(220)(1045, 1395, 1745, 2025)],
-      [...twoDrawers(625), ...shelves(220)(1045, 2025), ...shelves(300)(1395)],
+      [...twoDrawers(660), ...shelves(220)(1080, 1430, 1780, 2060)],
+      [...flapCabinet(660), ...shelves(220)(1430, 1780, 2060)],
+      [...twoDrawers(660), ...shelves(220)(1430, 1780, 2060)],
+      [...twoDrawers(660), ...shelves(220)(1080, 1430, 1780, 2060)],
+      [...twoDrawers(660), ...shelves(220)(1080, 2060), ...shelves(300)(1430)],
     ],
   },
   {
@@ -120,8 +120,8 @@ const recipes: Recipe[] = [
     mountingType: 'wall',
     bays: [912, 912],
     front: Array.from({ length: 2 }, () => [
-      ...shelves(300)(415, 765),
-      ...shelves(220)(1115, 1395, 1675, 1955, 2235),
+      ...shelves(300)(380, 730),
+      ...shelves(220)(1080, 1360, 1640, 1920, 2200),
     ]),
   },
   {
@@ -137,9 +137,9 @@ const recipes: Recipe[] = [
     mountingType: 'wall',
     bays: [912, 912, 912],
     front: [
-      [...cabinet(695), ...shelves(220)(1255, 1535), ...shelves(300)(1815)],
-      [...shelfWithDrawer(695), ...shelves(220)(1535), ...shelves(300)(1815)],
-      [...cabinet(695), ...shelves(220)(1255, 1535), ...shelves(300)(1815)],
+      [...cabinet(730), ...shelves(220)(1290, 1570), ...shelves(300)(1850)],
+      [...shelfWithDrawer(730), ...shelves(220)(1570), ...shelves(300)(1850)],
+      [...cabinet(730), ...shelves(220)(1290, 1570), ...shelves(300)(1850)],
     ],
   },
   {
@@ -155,7 +155,7 @@ const recipes: Recipe[] = [
     mountingType: 'semi-wall',
     bays: [912, 912],
     front: Array.from({ length: 2 }, () =>
-      shelves(220)(275, 555, 835, 1115, 1395, 1675, 1955, 2235, 2515),
+      shelves(220)(310, 590, 870, 1150, 1430, 1710, 1990, 2270, 2550),
     ),
     ceilingHeight: 3200,
   },
@@ -171,7 +171,7 @@ const recipes: Recipe[] = [
     photo: arenaPhoto('12049373/original_ccb043bf8ba353bdb9d5cf11b2ada6c7.png'),
     mountingType: 'wall',
     bays: [667],
-    front: [[...shelves(300)(835), ...shelves(220)(1115, 1325, 1535, 1745, 1955)]],
+    front: [[...shelves(300)(870), ...shelves(220)(1150, 1360, 1570, 1780, 1990)]],
   },
   {
     id: 'records',
@@ -183,8 +183,8 @@ const recipes: Recipe[] = [
     mountingType: 'wall',
     bays: [912, 912],
     front: Array.from({ length: 2 }, () => [
-      ...shelves(360)(415, 835),
-      ...shelves(220)(1325, 1605, 1885),
+      ...shelves(360)(450, 870),
+      ...shelves(220)(1360, 1640, 1920),
     ]),
   },
   {
@@ -197,10 +197,10 @@ const recipes: Recipe[] = [
     mountingType: 'wall',
     bays: [912, 912, 912],
     front: Array.from({ length: 3 }, () => [
-      ...shelves(360)(765),
-      ...sloping(1115),
-      ...magazineShelf(1605),
-      ...shelves(220)(1955),
+      ...shelves(360)(800),
+      ...sloping(1150),
+      ...magazineShelf(1640),
+      ...shelves(220)(1990),
     ]),
   },
   {
@@ -215,8 +215,8 @@ const recipes: Recipe[] = [
     photo: vitsoePhoto(2348),
     mountingType: 'floor-to-ceiling',
     bays: [912, 912],
-    front: Array.from({ length: 2 }, () => shelves(300)(415, 765, 1115, 1465, 1815)),
-    back: Array.from({ length: 2 }, () => shelves(300)(415, 765, 1115, 1465, 1815)),
+    front: Array.from({ length: 2 }, () => shelves(300)(450, 800, 1150, 1500, 1850)),
+    back: Array.from({ length: 2 }, () => shelves(300)(450, 800, 1150, 1500, 1850)),
   },
   {
     id: 'bedside',
@@ -230,7 +230,7 @@ const recipes: Recipe[] = [
     photo: vitsoePhoto(2258),
     mountingType: 'wall',
     bays: [912],
-    front: [twoDrawers(625)],
+    front: [twoDrawers(660)],
     colour: 'black',
   },
 ]

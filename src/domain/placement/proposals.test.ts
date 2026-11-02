@@ -4,7 +4,7 @@ import { initialPlan } from '../plan/defaults'
 import type { Plan, PlanItem } from '../plan/types'
 import type { MountingType } from '../types'
 import { validatePlan } from '../validation/validate'
-import { carrierHeight } from './grid'
+import { carrierHeight, holeOrigin } from './grid'
 import {
   canPlaceItem,
   findAvailablePlacement,
@@ -61,7 +61,7 @@ describe('placing new components', () => {
       productId: 'shelf',
       variantId: 'steel-667-220',
       bayIndex: 0,
-      height: 695,
+      height: 730,
       face: 'front',
       finish: 'off-white',
     }
@@ -84,7 +84,7 @@ describe('placing new components', () => {
         face: 'back',
         preferredBayIndex: bayIndex,
       })
-      expect(item).toMatchObject({ bayIndex, face: 'back', height: 345 })
+      expect(item).toMatchObject({ bayIndex, face: 'back', height: 310 })
       plan = { ...plan, system: { ...plan.system, items: [...plan.system.items, item!] } }
     })
 
@@ -111,7 +111,7 @@ describe('placing new components', () => {
         })
         expect(item, `${mountingType}/${centreWidth}`).toBeDefined()
         expect(item?.height).toBe(740)
-        expect((carrierHeight(item!, plan) - plan.system.mountHeight) % 70).toBe(0)
+        expect((carrierHeight(item!, plan) - holeOrigin(plan)) % 70).toBe(0)
       }
     }
   })

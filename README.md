@@ -57,7 +57,9 @@ stops with `ERR_PNPM_IGNORED_BUILDS`.
 
 - Sizes are whole millimetres. Bays are 667 or 912 mm between support centres, with
   655 or 900 mm of shelf between them. Neighbouring bays share a support.
-- Components hang on pins in the E-tracks, which have a hole every 70 mm.
+- Components hang on pins in the E-tracks. The first hole is 35 mm from the bottom
+  of a track, then there's one every 70 mm. With the tracks at the usual 345 mm, a
+  cabinet can sit with its top at 740 mm, level with a table.
 - There are four ways to mount a system: on the wall, on posts tied to the wall
   (semi-wall-mounted), on posts held between floor and ceiling, or freestanding on
   feet. The last two can carry components on both sides.
