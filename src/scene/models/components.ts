@@ -13,6 +13,7 @@ import {
   finishMaterial,
   feltMaterial,
 } from './materials'
+import { mountingProfile } from './mounting'
 import { box, cylinder, mesh, mm, plate, rodBetween, roundedBox, roundedShape } from './primitives'
 
 /** A component with its appearance resolved, so models never see `system`. */
@@ -25,7 +26,11 @@ export type ModelItem = Omit<PlanItem, 'finish' | 'frontFinish'> & {
 // visual estimates from the manufacturer photographs in docs/references.
 const steelThickness = 0.0016
 const pinTop = 0.01
-const shelfDeck = -0.09
+const shelfDeck = -0.0984
+const shelfHem = shelfDeck - steelThickness - 0.014
+const carrierHole = 0.004
+const earBack = -mm(mountingProfile.pinDepth - mountingProfile.trackWeb - 1)
+const trackFront = mm(mountingProfile.trackDepth - mountingProfile.pinDepth)
 
 export const carrierPinName = 'Shared aluminium carrier pin'
 
@@ -34,20 +39,21 @@ function pins(group: THREE.Group, width: number, y = 0) {
   const span = bayWidth ? mm(Number(bayWidth)) : width + 0.012
   // Installation and Beyond, pp26–27: one aluminium pin crosses all three
   // E-track fins, ends flush, and supports both neighbouring components.
-  // Turned reliefs follow the diagram; their small diameters are estimates.
+  // Planning guide p4 (1:5): 6 mm necks pass the fins and 7 mm collars
+  // carry the component plates in the two fin gaps.
   const profile = (
     [
       [0, -10],
-      [2.7, -10],
-      [2.7, -8.5],
-      [3, -8.25],
+      [3, -10],
+      [3, -7.8],
+      [3.5, -7.2],
+      [3.5, -1.7],
       [3, -1.1],
-      [2.7, -0.85],
-      [2.7, 0.85],
       [3, 1.1],
-      [3, 8.25],
-      [2.7, 8.5],
-      [2.7, 10],
+      [3.5, 1.7],
+      [3.5, 7.2],
+      [3, 7.8],
+      [3, 10],
       [0, 10],
     ] as const
   ).map(([radius, axis]) => new THREE.Vector2(mm(radius), mm(axis)))
@@ -62,23 +68,32 @@ function pins(group: THREE.Group, width: number, y = 0) {
   }
 }
 
-function sidePlate(depth: number, height: number, thickness: number, material: THREE.Material) {
-  const bottom = pinTop - height
+function sidePlate(
+  depth: number,
+  bottom: number,
+  thickness: number,
+  material: THREE.Material,
+  steel = false,
+) {
+  // Planning guide p4 (1:5): a steel shelf side ends 7 mm above the pin, so
+  // it can turn about the pin inside the E-track. Its second hole, 90.8 mm
+  // lower, lets the shelf hang either way up.
+  const top = steel ? 0.007 : pinTop
   const shape = new THREE.Shape()
-  shape.moveTo(-0.009, bottom)
-  shape.lineTo(depth - 0.005, bottom)
-  shape.quadraticCurveTo(depth, bottom, depth, bottom + 0.005)
-  shape.lineTo(depth, pinTop - 0.012)
-  shape.quadraticCurveTo(depth, pinTop, depth - 0.012, pinTop)
-  shape.lineTo(-0.009, pinTop)
+  shape.moveTo(earBack, bottom)
+  if (steel) shape.lineTo(depth, bottom)
+  else {
+    shape.lineTo(depth - 0.005, bottom)
+    shape.quadraticCurveTo(depth, bottom, depth, bottom + 0.005)
+  }
+  shape.lineTo(depth, top - 0.01)
+  shape.quadraticCurveTo(depth, top, depth - 0.01, top)
+  shape.lineTo(earBack, top)
   shape.closePath()
-  const pinHole = new THREE.Path()
-  pinHole.absarc(0, 0, 0.0032, 0, Math.PI * 2, true)
-  shape.holes.push(pinHole)
-  if (height >= 0.1) {
-    const lowerHole = new THREE.Path()
-    lowerHole.absarc(0, -0.07, 0.0032, 0, Math.PI * 2, true)
-    shape.holes.push(lowerHole)
+  for (const y of steel ? [0, -0.0908] : [0]) {
+    const hole = new THREE.Path()
+    hole.absarc(0, y, carrierHole, 0, Math.PI * 2, true)
+    shape.holes.push(hole)
   }
   const object = plate(shape, thickness, material)
   object.rotation.y = -Math.PI / 2
@@ -86,6 +101,13 @@ function sidePlate(depth: number, height: number, thickness: number, material: T
 }
 
 function metalShelf(group: THREE.Group, w: number, d: number, material: THREE.Material) {
+  // Planning guide pp9 and 10 (1:10): the deck lies 100 mm below the pin, the
+  // usable depth starts at the E-track's front face, and the rolled lip adds
+  // about 10 mm. Its drop below the deck varies between drawings (p4 9 mm,
+  // p9 20 mm); 14 mm matches the four-bay render in docs/references.
+  const front = d + trackFront
+  const underside = shelfDeck - steelThickness
+
   // A continuous 1.6 mm formed section joins the rear return, deck and front
   // lip. Narrow end wings stop ahead of the E-fins to leave the corner reliefs.
   function section(withRearReturn: boolean) {
@@ -99,20 +121,20 @@ function metalShelf(group: THREE.Group, w: number, d: number, material: THREE.Ma
       shape.lineTo(steelThickness, shelfDeck + 0.003)
       shape.quadraticCurveTo(steelThickness, shelfDeck, 0.0046, shelfDeck)
     } else shape.moveTo(0.01, shelfDeck)
-    shape.lineTo(d - 0.003, shelfDeck)
-    shape.quadraticCurveTo(d, shelfDeck, d, shelfDeck - 0.003)
-    shape.lineTo(d, -0.1)
-    shape.lineTo(d - steelThickness, -0.1)
-    shape.lineTo(d - steelThickness, shelfDeck - 0.003)
-    shape.quadraticCurveTo(
-      d - steelThickness,
-      shelfDeck - steelThickness,
-      d - 0.003,
-      shelfDeck - steelThickness,
-    )
-    shape.lineTo(withRearReturn ? 0.0046 : 0.01, shelfDeck - steelThickness)
+    shape.lineTo(front + 0.001, shelfDeck)
+    shape.absarc(front + 0.006, shelfDeck, 0.005, Math.PI, 0, true)
+    shape.lineTo(front + 0.011, shelfHem + 0.004)
+    shape.absarc(front + 0.007, shelfHem + 0.004, 0.004, 0, -Math.PI / 2, true)
+    shape.lineTo(front + 0.002, shelfHem)
+    shape.lineTo(front + 0.002, shelfHem + steelThickness)
+    shape.lineTo(front + 0.007, shelfHem + steelThickness)
+    shape.absarc(front + 0.007, shelfHem + 0.004, 0.004 - steelThickness, -Math.PI / 2, 0, false)
+    shape.lineTo(front + 0.011 - steelThickness, shelfDeck)
+    shape.absarc(front + 0.006, shelfDeck, 0.005 - steelThickness, 0, Math.PI, false)
+    shape.lineTo(front + 0.001 + steelThickness, underside)
+    shape.lineTo(withRearReturn ? 0.0046 : 0.01, underside)
     if (withRearReturn) {
-      shape.quadraticCurveTo(0, shelfDeck - steelThickness, 0, shelfDeck + 0.003)
+      shape.quadraticCurveTo(0, underside, 0, shelfDeck + 0.003)
       shape.lineTo(0, shelfDeck + 0.0076)
       shape.absarc(-0.0008, shelfDeck + 0.0076, 0.0008, 0, Math.PI, false)
       shape.lineTo(-0.0016, shelfDeck + 0.004)
@@ -155,7 +177,7 @@ function metalShelf(group: THREE.Group, w: number, d: number, material: THREE.Ma
   group.add(deck)
 
   for (const sign of [-1, 1]) {
-    const side = sidePlate(d - 0.003, 0.1, steelThickness, material)
+    const side = sidePlate(front, shelfDeck, steelThickness, material, true)
     side.position.x = sign * (w / 2 - steelThickness / 2)
     side.name = 'Upward folded steel side'
     group.add(side)
@@ -221,7 +243,7 @@ function woodShelf(
   const d = mm(desk ? 360 : variant.depth)
   const material = finishMaterial(item.finish, 'panel')
   for (const sign of [-1, 1]) {
-    const side = sidePlate(d, 0.11, 0.002, aluminium)
+    const side = sidePlate(d, pinTop - 0.11, 0.002, aluminium)
     side.position.x = sign * (w / 2 - 0.001)
     group.add(side)
   }
@@ -324,16 +346,16 @@ function cabinet(
     // The small rear ear occupies the relieved panel corner and joins the
     // side edge. Its pin passes through a real hole, not through the wood top.
     const earShape = new THREE.Shape()
-    earShape.moveTo(-0.009, top)
+    earShape.moveTo(earBack, top)
     earShape.lineTo(0.009, top)
     earShape.lineTo(0.009, top - 0.0162)
     earShape.lineTo(0, top - 0.0162)
     earShape.lineTo(0, top - 0.05)
-    earShape.lineTo(-0.009, top - 0.05)
+    earShape.lineTo(earBack, top - 0.05)
     earShape.closePath()
-    const carrierHole = new THREE.Path()
-    carrierHole.absarc(0, 0, 0.0032, 0, Math.PI * 2, true)
-    earShape.holes.push(carrierHole)
+    const hole = new THREE.Path()
+    hole.absarc(0, 0, carrierHole, 0, Math.PI * 2, true)
+    earShape.holes.push(hole)
     const ear = plate(earShape, 0.002, aluminium)
     ear.rotation.y = -Math.PI / 2
     ear.position.x = sign * (w / 2 - 0.001)
@@ -437,13 +459,13 @@ function integratedTable(
   group.add(tabletop)
   for (const sign of [-1, 1]) {
     const carrierShape = new THREE.Shape()
-    carrierShape.moveTo(-0.009, pinY - 0.01)
+    carrierShape.moveTo(earBack, pinY - 0.01)
     carrierShape.lineTo(0.06, pinY - 0.01)
     carrierShape.lineTo(0.06, top - 0.018)
-    carrierShape.lineTo(-0.009, top - 0.018)
+    carrierShape.lineTo(earBack, top - 0.018)
     carrierShape.closePath()
     const hole = new THREE.Path()
-    hole.absarc(0, pinY, 0.0032, 0, Math.PI * 2, true)
+    hole.absarc(0, pinY, carrierHole, 0, Math.PI * 2, true)
     carrierShape.holes.push(hole)
     const carrier = plate(carrierShape, 0.002, aluminium)
     carrier.rotation.y = -Math.PI / 2
@@ -560,10 +582,10 @@ export function makeComponent(
         }
       }
       shell.rotation.z = Math.PI
-      shell.position.y = -0.09
+      shell.position.y = pinTop + shelfHem
       group.add(shell)
       for (const sign of [-1, 1]) {
-        const side = sidePlate(d - 0.003, 0.11, steelThickness, material)
+        const side = sidePlate(d + trackFront, pinTop - 0.11, steelThickness, material)
         side.position.x = sign * (w / 2 - steelThickness / 2)
         side.name = 'Downward clothes shelf side with carrier hole'
         group.add(side)
@@ -596,13 +618,13 @@ export function makeComponent(
       group.add(panel)
       for (const sign of [-1, 1]) {
         const shape = new THREE.Shape()
-        shape.moveTo(-0.009, pinTop)
+        shape.moveTo(earBack, pinTop)
         shape.lineTo(rear, pinTop)
         shape.lineTo(d, bottom)
-        shape.lineTo(-0.009, bottom)
+        shape.lineTo(earBack, bottom)
         shape.closePath()
         const hole = new THREE.Path()
-        hole.absarc(0, 0, 0.0032, 0, Math.PI * 2, true)
+        hole.absarc(0, 0, carrierHole, 0, Math.PI * 2, true)
         shape.holes.push(hole)
         const side = plate(shape, steelThickness, material)
         side.rotation.y = -Math.PI / 2

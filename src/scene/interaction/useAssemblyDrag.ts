@@ -33,6 +33,8 @@ type CaptureTarget = Element & {
 interface Measurements {
   width: number
   depth: number
+  /** The catalogue depth; a metal shelf's front lip reaches past it */
+  nominalDepth: number
   bottom: number
   tabletop: boolean
 }
@@ -40,12 +42,14 @@ interface Measurements {
 /** Width, depth and lowest point of a component, from its catalogue size where it has one. */
 export function measureItem(item: PlanItem, bounds: THREE.Box3): Measurements {
   const variant = catalog.variant(item.productId, item.variantId)
+  const vertical = item.orientation === 'vertical'
+  const depth = vertical
+    ? bounds.max.z - bounds.min.z
+    : Math.max(mm(variant?.depth ?? 0), bounds.max.z)
   return {
     width: variant ? mm(variant.width) : bounds.max.x - bounds.min.x,
-    depth:
-      item.orientation === 'vertical'
-        ? bounds.max.z - bounds.min.z
-        : Math.max(mm(variant?.depth ?? 0), bounds.max.z),
+    depth,
+    nominalDepth: variant && !vertical ? mm(variant.depth) : depth,
     bottom: bounds.min.y,
     tabletop: isIntegratedTable(item.productId),
   }

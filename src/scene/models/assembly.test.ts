@@ -383,7 +383,7 @@ describe('configured assembly and AR export', () => {
     disposeAssembly(assembly)
   })
 
-  it('keeps the sourced 110 mm metal shelf envelope when reversed, and keeps its depth in front of the track', () => {
+  it('keeps the sourced 107 mm steel side and hanging front lip when reversed, and keeps its depth in front of the track', () => {
     const product = fullCatalog.product('shelf')!
     for (const orientation of ['standard', 'inverted'] as const) {
       const item: ModelItem = {
@@ -398,7 +398,7 @@ describe('configured assembly and AR export', () => {
       }
       const component = makeComponent(product, item, product.variants[0]!)
       const bounds = new Box3().setFromObject(component)
-      expect(bounds.getSize(new Vector3()).y).toBeCloseTo(0.11, 5)
+      expect(bounds.getSize(new Vector3()).y).toBeCloseTo(0.121, 5)
       expect(bounds.min.z).toBeGreaterThanOrEqual(-0.011)
       disposeAssembly(component)
     }
@@ -426,7 +426,7 @@ describe('configured assembly and AR export', () => {
       const component = makeComponent(product, item, product.variants[0]!)
       component.updateMatrixWorld(true)
       const deck = component.getObjectByName('Folded steel deck')!
-      const origin = deck.localToWorld(new Vector3(0, -0.0845, -0.03))
+      const origin = deck.localToWorld(new Vector3(0, -0.0929, -0.03))
       const direction = new Vector3(0, 0, 1).transformDirection(deck.matrixWorld)
       const hits = new Raycaster(origin, direction, 0, 0.05).intersectObject(deck)
       const depths = hits.map((hit) => deck.worldToLocal(hit.point.clone()).z)
@@ -460,7 +460,7 @@ describe('configured assembly and AR export', () => {
       const carrier = component.getObjectByName(carrierPinName)!
       expect(carrier.getWorldPosition(new Vector3()).y).toBeCloseTo(item.height / 1000, 6)
       expect(bounds.max.z).toBeCloseTo(0.36, 5)
-      expect(bounds.min.z).toBeCloseTo(-0.009, 5)
+      expect(bounds.min.z).toBeCloseTo(-0.0075, 5)
       disposeAssembly(component)
     }
   })

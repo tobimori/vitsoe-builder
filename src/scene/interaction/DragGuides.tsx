@@ -15,7 +15,7 @@ export function GapGuides({ gaps }: { gaps: Gap[] }) {
 
 /** Pin height, width and depth of the component at its drop position. */
 export function ItemGuides({ preview }: { preview: ItemPreview }) {
-  const { width, depth, height, x, z, face, tabletop } = preview
+  const { width, depth, nominalDepth, height, x, z, face, tabletop } = preview
   const baseline = Math.max(0.08, height + preview.bottom - 0.08)
 
   return (
@@ -34,7 +34,7 @@ export function ItemGuides({ preview }: { preview: ItemPreview }) {
       <Dimension
         start={[width / 2 + 0.12, baseline, 0]}
         end={[width / 2 + 0.12, baseline, depth]}
-        label={`${Math.round(depth * 1000)} mm deep`}
+        label={`${Math.round(nominalDepth * 1000)} mm deep`}
         labelAlign="right"
       />
     </group>

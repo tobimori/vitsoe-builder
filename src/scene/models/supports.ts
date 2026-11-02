@@ -7,10 +7,10 @@ import { box, cylinder, mesh, mm, plate, roundedBox } from './primitives'
 import { mountingDepths, mountingProfile } from './mounting'
 import { reuse } from './reuse'
 
-function screw(x: number, y: number, z: number, shaftLength = 0) {
+function screw(x: number, y: number, z: number, shaftLength = 0, radius = 0.0036) {
   const group = new THREE.Group()
   group.position.set(x, y, z)
-  const head = cylinder(0.0036, 0.0016, polishedMetal)
+  const head = cylinder(radius, 0.0016, polishedMetal)
   head.rotation.x = Math.PI / 2
   group.add(head)
   if (shaftLength > 0) {
@@ -32,21 +32,23 @@ function trackSegment(height: number, holes: number[]) {
 function makeTrackSegment(height: number, holes: number[]) {
   const segment = new THREE.Group()
   segment.name = `${Math.round(height * 1000)} mm E-track segment`
-  segment.add(box(0.02, height, 0.0015, aluminium, 0, height / 2, 0.00075))
+  const size = mm(mountingProfile.trackDepth)
+  const wall = mm(mountingProfile.trackWeb)
+  segment.add(box(size, height, wall, aluminium, 0, height / 2, wall / 2))
   const side = new THREE.Shape()
-  side.moveTo(0, 0)
-  side.lineTo(0.02, 0)
-  side.lineTo(0.02, height)
-  side.lineTo(0, height)
+  side.moveTo(wall, 0)
+  side.lineTo(size, 0)
+  side.lineTo(size, height)
+  side.lineTo(wall, height)
   side.closePath()
   for (const y of holes) {
     const hole = new THREE.Path()
-    hole.absarc(mm(mountingProfile.pinDepth), y, 0.0032, 0, Math.PI * 2, true)
+    hole.absarc(mm(mountingProfile.pinDepth), y, 0.004, 0, Math.PI * 2, true)
     side.holes.push(hole)
   }
   // Circular holes go through the side fins; they are actual geometry.
-  const finGeometry = plate(side, 0.0015, aluminium).geometry
-  for (const x of [-0.00925, 0, 0.00925]) {
+  const finGeometry = plate(side, wall, aluminium).geometry
+  for (const x of [-(size - wall) / 2, 0, (size - wall) / 2]) {
     const fin = mesh(finGeometry, aluminium)
     fin.rotation.y = -Math.PI / 2
     fin.position.x = x
@@ -54,7 +56,7 @@ function makeTrackSegment(height: number, holes: number[]) {
     segment.add(fin)
   }
   for (const y of [Math.min(0.025, height / 3), height - Math.min(0.025, height / 3)])
-    segment.add(screw(0.0045, y, 0.004, 0.008))
+    segment.add(screw((size - wall) / 4, y, wall + 0.0008, 0.008, 0.0031))
   return segment
 }
 
@@ -181,7 +183,7 @@ function postSection(hPost: boolean, hollow = true) {
 }
 
 function post(parent: THREE.Group, x: number, height: number, hPost: boolean, compressed: boolean) {
-  const z = hPost ? -0.034 : -0.024
+  const z = mm(mountingDepths(hPost).postCentre)
   const bottom = 0.045
   const top = height - (compressed ? 0.014 : 0.002)
   const body = reuse(`Post ${hPost} ${top - bottom}`, () =>
@@ -238,9 +240,16 @@ function foot(parent: THREE.Group, x: number, z: number, single = false) {
   }
 }
 
-function wallTie(parent: THREE.Group, x: number, y: number, depth: number, extension: boolean) {
+function wallTie(
+  parent: THREE.Group,
+  x: number,
+  y: number,
+  postZ: number,
+  depth: number,
+  extension: boolean,
+) {
   const extensionLength = extension ? 0.065 : 0
-  const wallZ = -0.024 - depth - extensionLength
+  const wallZ = postZ - depth - extensionLength
   const material = finishMaterial('silver')
   const base = cylinder(0.0625, 0.005, material, x, y, wallZ + 0.004, 48)
   base.rotation.x = Math.PI / 2
@@ -254,14 +263,7 @@ function wallTie(parent: THREE.Group, x: number, y: number, depth: number, exten
   barrel.name = depth > 0.08 ? 'Long wall bracket barrel' : 'Short wall bracket barrel'
   parent.add(barrel)
   if (extension) {
-    const bolt = cylinder(
-      0.0075,
-      extensionLength,
-      polishedMetal,
-      x,
-      y,
-      -0.024 - extensionLength / 2,
-    )
+    const bolt = cylinder(0.0075, extensionLength, polishedMetal, x, y, postZ - extensionLength / 2)
     bolt.rotation.x = Math.PI / 2
     bolt.name = '65 mm extension bolt'
     parent.add(bolt)
@@ -287,7 +289,7 @@ export function addSupports(
         ? Math.min(1.915, highestTrack)
         : highestTrack + 0.055
   const hPost = usesHPosts(plan, tracks)
-  const postZ = hPost ? -0.034 : -0.024
+  const postZ = mm(mountingDepths(hPost).postCentre)
   for (const [index, x] of positions.entries()) {
     const support = new THREE.Group()
     support.name = `Support ${index + 1}`
@@ -313,6 +315,7 @@ export function addSupports(
             support,
             x,
             y,
+            postZ,
             options.wallBracket === 'long' ? 0.11 : 0.07,
             options.extensionBolts,
           ),
